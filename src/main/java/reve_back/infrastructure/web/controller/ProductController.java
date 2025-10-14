@@ -1,11 +1,11 @@
 package reve_back.infrastructure.web.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import reve_back.application.ports.in.CreateProductUseCase;
 import reve_back.application.ports.in.ListProductsUseCase;
+import reve_back.infrastructure.web.dto.ProductCreationRequest;
+import reve_back.infrastructure.web.dto.ProductCreationResponse;
 import reve_back.infrastructure.web.dto.ProductSummaryDTO;
 
 import java.util.List;
@@ -16,6 +16,7 @@ import java.util.List;
 public class ProductController {
 
     private final ListProductsUseCase listProductsUseCase;
+    private final CreateProductUseCase createProductUseCase;
 
     @GetMapping
     public List<ProductSummaryDTO> getProducts(
@@ -24,4 +25,10 @@ public class ProductController {
 
         return listProductsUseCase.findAll(page, size);
     }
+
+    @PostMapping
+    public ProductCreationResponse createProduct(@RequestBody ProductCreationRequest request) {
+        return createProductUseCase.createProduct(request);
+    }
+
 }
