@@ -33,12 +33,13 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductDetailsResponse> getProductDetails(@PathVariable Long id) {
+    public ResponseEntity<?> getProductDetails(@PathVariable Long id) {
         try{
             ProductDetailsResponse response = getProductDetailsUseCase.getProductDetails(id);
             return ResponseEntity.ok(response);
         }catch (RuntimeException ex){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            String errorMessage = "Producto no encontrado con ID: " + id;
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorMessage);
         }
     }
 
