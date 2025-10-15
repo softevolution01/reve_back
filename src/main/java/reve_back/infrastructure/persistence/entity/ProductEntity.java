@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -29,9 +31,11 @@ public class ProductEntity {
     private Double price;
 
     @Column(name = "created_at")
+    @CreationTimestamp
     private java.time.LocalDateTime createdAt;
 
     @Column(name = "updated_at")
+    @UpdateTimestamp
     private java.time.LocalDateTime updatedAt;
 
     @Column(name = "unit_volume_ml", nullable = false)

@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -35,8 +37,10 @@ public class BottleEntity {
     private Long branchId;
 
     @Column(name = "created_at")
+    @CreationTimestamp
     private java.time.LocalDateTime createdAt;
 
     @Column(name = "updated_at")
+    @UpdateTimestamp
     private java.time.LocalDateTime updatedAt;
 }

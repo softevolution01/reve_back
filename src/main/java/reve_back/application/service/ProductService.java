@@ -1,11 +1,13 @@
 package reve_back.application.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import reve_back.application.ports.in.CreateProductUseCase;
 import reve_back.application.ports.in.ListProductsUseCase;
 import reve_back.application.ports.out.BottleRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
+import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.model.Bottle;
 import reve_back.domain.model.NewProduct;
 import reve_back.domain.model.Product;
@@ -27,42 +29,49 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
     @Override
     public ProductCreationResponse createProduct(ProductCreationRequest request) {
-        // Crea un nuevo producto
-        NewProduct newProduct = new NewProduct(request.brand(), request.line(), request.concentration(),
-                request.price(), request.unitVolumeMl());
-        Product savedProduct = productRepositoryPort.save(newProduct);
+        try {
+            // Crea un nuevo producto
+            NewProduct newProduct = new NewProduct(request.brand(), request.line(), request.concentration(),
+                    request.price(), request.unitVolumeMl());
+            Product savedProduct = productRepositoryPort.save(newProduct);
 
-        // Crea botellas asociadas
-        List<Bottle> bottles = request.bottles().stream()
-                .map(bottle -> new Bottle(
-                        null,
-                        savedProduct.id(),
-                        bottle.status(),
-                        bottle.barcode(),
-                        bottle.volumeMl(),
-                        bottle.remainingVolumeMl(),
-                        bottle.branchId()
-                ))
-                .collect(Collectors.toList());
-        List<Bottle> savedBottles = bottleRepositoryPort.saveAll(bottles);
+            // Crea botellas asociadas
+            List<Bottle> bottles = request.bottles().stream()
+                    .map(bottle -> new Bottle(
+                            null,
+                            savedProduct.id(),
+                            bottle.status(),
+                            bottle.barcode(),
+                            bottle.volumeMl(),
+                            bottle.remainingVolumeMl(),
+                            bottle.branchId()
+                    ))
+                    .collect(Collectors.toList());
+            List<Bottle> savedBottles = bottleRepositoryPort.saveAll(bottles);
 
-        // Mapear respuesta
-        List<BottleCreationResponse> bottleResponse = savedBottles.stream()
-                .map(b -> new BottleCreationResponse(
-                        b.id(),
-                        b.barcode(),
-                        b.branchId(),
-                        b.volumeMl(),
-                        b.remainingVolumeMl(),
-                        b.status()))
-                .collect(Collectors.toList());
-        return new ProductCreationResponse(
-                savedProduct.id(),
-                savedProduct.brand(),
-                savedProduct.line(),
-                savedProduct.concentration(),
-                savedProduct.price(),
-                bottleResponse);
+            // Mapear respuesta
+            List<BottleCreationResponse> bottleResponse = savedBottles.stream()
+                    .map(b -> new BottleCreationResponse(
+                            b.id(),
+                            b.barcode(),
+                            b.branchId(),
+                            b.volumeMl(),
+                            b.remainingVolumeMl(),
+                            b.status()))
+                    .collect(Collectors.toList());
+            return new ProductCreationResponse(
+                    savedProduct.id(),
+                    savedProduct.brand(),
+                    savedProduct.line(),
+                    savedProduct.concentration(),
+                    savedProduct.price(),
+                    bottleResponse);
+        } catch (DataIntegrityViolationException ex) {
+            if (ex.getMessage().contains("bottles_barcode_key")) {
+                throw new DuplicateBarcodeException("El código de barras ya está en uso. Usa un valor único.");
+            }
+            throw ex;
+        }
     }
 
     @Override
