@@ -44,4 +44,19 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         entity.getBranchId()))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<Bottle> findAllByProductId(Long productId) {
+        List<BottleEntity> bottleEntities = springDataBottleRepository.findByProductId(productId);
+        return bottleEntities.stream()
+                .map(entity -> new Bottle(
+                        entity.getId(),
+                        entity.getProductId(),
+                        entity.getStatus(),
+                        entity.getBarcode(),
+                        entity.getVolumeMl(),
+                        entity.getRemainingVolumeMl(),
+                        entity.getBranchId()))
+                .collect(Collectors.toList());
+    }
 }

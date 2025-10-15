@@ -5,10 +5,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.CreateProductUseCase;
+import reve_back.application.ports.in.GetProductDetailsUseCase;
 import reve_back.application.ports.in.ListProductsUseCase;
 import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.infrastructure.web.dto.ProductCreationRequest;
 import reve_back.infrastructure.web.dto.ProductCreationResponse;
+import reve_back.infrastructure.web.dto.ProductDetailsResponse;
 import reve_back.infrastructure.web.dto.ProductSummaryDTO;
 
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.List;
 public class ProductController {
 
     private final ListProductsUseCase listProductsUseCase;
+    private final GetProductDetailsUseCase getProductDetailsUseCase;
     private final CreateProductUseCase createProductUseCase;
 
     @GetMapping
@@ -27,6 +30,17 @@ public class ProductController {
             @RequestParam(defaultValue = "10") int size) {
 
         return listProductsUseCase.findAll(page, size);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getProductDetails(@PathVariable Long id) {
+        try{
+            ProductDetailsResponse response = getProductDetailsUseCase.getProductDetails(id);
+            return ResponseEntity.ok(response);
+        }catch (RuntimeException ex){
+            String errorMessage = "Producto no encontrado con ID: " + id;
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorMessage);
+        }
     }
 
     @PostMapping
