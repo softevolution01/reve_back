@@ -13,22 +13,28 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Entity
 @Getter
 @Setter
-@Table(name = "products")
-public class ProductEntity {
+@Table(name = "bottles")
+public class BottleEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String brand;
+    @Column(name = "product_id", nullable = false)
+    private Long productId;
 
-    private String line;
+    private String status;
 
-    private String concentration;
+    private String barcode;
 
-    @Column(nullable = false)
-    private Double price;
+    @Column(name = "volume_ml", nullable = false)
+    private Integer volumeMl;
+
+    @Column(name = "remaining_volume_ml", nullable = false)
+    private Integer remainingVolumeMl;
+
+    @Column(name = "branch_id", nullable = false)
+    private Long branchId;
 
     @Column(name = "created_at")
     @CreationTimestamp
@@ -37,7 +43,4 @@ public class ProductEntity {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private java.time.LocalDateTime updatedAt;
-
-    @Column(name = "unit_volume_ml", nullable = false)
-    private Integer unitVolumeMl;
 }
