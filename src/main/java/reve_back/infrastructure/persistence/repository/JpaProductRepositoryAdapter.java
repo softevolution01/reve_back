@@ -48,4 +48,10 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
                 ))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public ProductEntity findById(Long id) {
+        return springDataProductRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+    }
 }
