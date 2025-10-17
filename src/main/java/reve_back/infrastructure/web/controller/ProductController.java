@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @RestController
 @CrossOrigin
-@RequestMapping("products")
+@RequestMapping("api/products")
 public class ProductController {
 
     private final ListProductsUseCase listProductsUseCase;
