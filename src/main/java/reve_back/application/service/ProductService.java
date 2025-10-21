@@ -26,50 +26,54 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     private final BottleRepositoryPort bottleRepositoryPort;
 
     @Override
+    @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
     public ProductCreationResponse createProduct(ProductCreationRequest request) {
+
+        // Crea un nuevo producto
+        NewProduct newProduct = new NewProduct(request.brand(), request.line(), request.concentration(),
+                request.price(), request.unitVolumeMl());
+        Product savedProduct = productRepositoryPort.save(newProduct);
+
+        // Crea botellas asociadas
+        List<Bottle> bottles = request.bottles().stream()
+                .map(bottle -> new Bottle(
+                        null,
+                        savedProduct.id(),
+                        bottle.status(),
+                        bottle.barcode(),
+                        bottle.volumeMl(),
+                        bottle.remainingVolumeMl(),
+                        bottle.branchId()
+                ))
+                .collect(Collectors.toList());
+        List<Bottle> savedBottles;
         try {
-            // Crea un nuevo producto
-            NewProduct newProduct = new NewProduct(request.brand(), request.line(), request.concentration(),
-                    request.price(), request.unitVolumeMl());
-            Product savedProduct = productRepositoryPort.save(newProduct);
-
-            // Crea botellas asociadas
-            List<Bottle> bottles = request.bottles().stream()
-                    .map(bottle -> new Bottle(
-                            null,
-                            savedProduct.id(),
-                            bottle.status(),
-                            bottle.barcode(),
-                            bottle.volumeMl(),
-                            bottle.remainingVolumeMl(),
-                            bottle.branchId()
-                    ))
-                    .collect(Collectors.toList());
-            List<Bottle> savedBottles = bottleRepositoryPort.saveAll(bottles);
-
-            // Mapear respuesta
-            List<BottleCreationResponse> bottleResponse = savedBottles.stream()
-                    .map(b -> new BottleCreationResponse(
-                            b.id(),
-                            b.barcode(),
-                            b.branchId(),
-                            b.volumeMl(),
-                            b.remainingVolumeMl(),
-                            b.status()))
-                    .collect(Collectors.toList());
-            return new ProductCreationResponse(
-                    savedProduct.id(),
-                    savedProduct.brand(),
-                    savedProduct.line(),
-                    savedProduct.concentration(),
-                    savedProduct.price(),
-                    bottleResponse);
+            savedBottles = bottleRepositoryPort.saveAll(bottles);
         } catch (DataIntegrityViolationException ex) {
             if (ex.getMessage().contains("bottles_barcode_key")) {
                 throw new DuplicateBarcodeException("El código de barras ya está en uso. Usa un valor único.");
             }
             throw ex;
         }
+
+        // Mapear respuesta
+        List<BottleCreationResponse> bottleResponse = savedBottles.stream()
+                .map(b -> new BottleCreationResponse(
+                        b.id(),
+                        b.barcode(),
+                        b.branchId(),
+                        b.volumeMl(),
+                        b.remainingVolumeMl(),
+                        b.status()))
+                .collect(Collectors.toList());
+        return new ProductCreationResponse(
+                savedProduct.id(),
+                savedProduct.brand(),
+                savedProduct.line(),
+                savedProduct.concentration(),
+                savedProduct.price(),
+                bottleResponse);
+
     }
 
     @Override

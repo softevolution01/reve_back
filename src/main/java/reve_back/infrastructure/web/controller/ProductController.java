@@ -1,6 +1,7 @@
 package reve_back.infrastructure.web.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -46,12 +47,14 @@ public class ProductController {
         try{
             ProductCreationResponse response = createProductUseCase.createProduct(request);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
-        } catch (DuplicateBarcodeException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+        } catch (DataIntegrityViolationException ex) {
+            if (ex.getMessage().contains("bottles_barcode_key")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("El código de barras ya está en uso. Usa un valor único.");
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
         }
-
     }
 
     @PutMapping("/{id}")
