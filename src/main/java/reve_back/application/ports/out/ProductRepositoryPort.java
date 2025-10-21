@@ -12,4 +12,5 @@ public interface ProductRepositoryPort {
     List<ProductSummaryDTO> findAll(int page, int size);
     ProductEntity findById(Long id);
     ProductEntity update(ProductEntity productEntity);
+    void setInactiveById(Long id);
 }

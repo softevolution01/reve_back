@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reve_back.application.ports.in.CreateProductUseCase;
-import reve_back.application.ports.in.GetProductDetailsUseCase;
-import reve_back.application.ports.in.ListProductsUseCase;
-import reve_back.application.ports.in.UpdateProductUseCase;
+import reve_back.application.ports.in.*;
 import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.infrastructure.web.dto.*;
 
@@ -23,6 +20,7 @@ public class ProductController {
     private final GetProductDetailsUseCase getProductDetailsUseCase;
     private final CreateProductUseCase createProductUseCase;
     private final UpdateProductUseCase updateProductUseCase;
+    private final DeleteProductUseCase deleteProductUseCase;
 
     @GetMapping
     public List<ProductSummaryDTO> getProducts(
@@ -64,6 +62,21 @@ public class ProductController {
         } catch (DuplicateBarcodeException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
         } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado con ID: " + id);
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
+        try{
+            deleteProductUseCase.deleteProduct(id);
+            return ResponseEntity.ok().build();
+        } catch (RuntimeException ex) {
+            if (ex.getMessage().contains("botellas asociadas")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("No se puede eliminar: el producto tiene botellas asociadas no agotadas (volume_ml y remaining_volume_ml deben ser 0).");
+            }
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado con ID: " + id);
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());

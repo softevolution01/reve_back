@@ -24,7 +24,7 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     public Product save(NewProduct product) {
         ProductEntity entity = new ProductEntity(
                         null, product.brand(), product.line(), product.concentration(),
-                        product.price(), null, null, product.unitVolumeMl()
+                        product.price(), true, null, null, product.unitVolumeMl()
                 );
         ProductEntity savedEntity = springDataProductRepository.save(entity);
         return new Product(
@@ -58,5 +58,12 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public ProductEntity update(ProductEntity productEntity) {
         return springDataProductRepository.save(productEntity);
+    }
+
+    @Override
+    public void setInactiveById(Long id) {
+        ProductEntity productEntity = findById(id);
+        productEntity.set_active(false);
+        springDataProductRepository.save(productEntity);
     }
 }

@@ -30,6 +30,8 @@ public class ProductEntity {
     @Column(nullable = false)
     private Double price;
 
+    private boolean is_active;
+
     @Column(name = "created_at")
     @CreationTimestamp
     private java.time.LocalDateTime createdAt;

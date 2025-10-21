@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import reve_back.application.ports.in.CreateProductUseCase;
-import reve_back.application.ports.in.GetProductDetailsUseCase;
-import reve_back.application.ports.in.ListProductsUseCase;
-import reve_back.application.ports.in.UpdateProductUseCase;
+import reve_back.application.ports.in.*;
 import reve_back.application.ports.out.BottleRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
@@ -15,8 +12,6 @@ import reve_back.domain.model.Bottle;
 import reve_back.domain.model.NewProduct;
 import reve_back.domain.model.Product;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
-import reve_back.infrastructure.persistence.jpa.SpringDataProductRepository;
-import reve_back.infrastructure.persistence.repository.JpaProductRepositoryAdapter;
 import reve_back.infrastructure.web.dto.*;
 
 import java.util.List;
@@ -24,7 +19,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
-public class ProductService implements ListProductsUseCase, CreateProductUseCase, GetProductDetailsUseCase, UpdateProductUseCase {
+public class ProductService implements ListProductsUseCase, CreateProductUseCase, GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase {
 
 
     private final ProductRepositoryPort productRepositoryPort;
@@ -145,5 +140,19 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             }
             throw ex;
         }
+    }
+
+    @Override
+    public void deleteProduct(Long id) {
+        ProductEntity productEntity = productRepositoryPort.findById(id);
+        List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
+        if (!bottles.isEmpty()) {
+            boolean allExhausted = bottles.stream().allMatch(b-> b.volumeMl() == 0 && b.remainingVolumeMl() == 0);
+            if (!allExhausted) {
+                throw new RuntimeException("No se puede eliminar: el producto tiene botellas asociadas no agotadas (volumen ml y volumen restante ml deben ser 0).");
+            }
+        }
+        productEntity.set_active(false);
+        productRepositoryPort.update(productEntity);
     }
 }
