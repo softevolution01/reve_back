@@ -39,6 +39,7 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     public List<ProductSummaryDTO> findAll(int page, int size) {
         Page<ProductEntity> productPage = springDataProductRepository.findAll(PageRequest.of(page,size));
         return productPage.getContent().stream()
+                .filter(entity -> entity.is_active())
                 .map(entity -> new ProductSummaryDTO(
                         entity.getId(),
                         entity.getBrand(),
