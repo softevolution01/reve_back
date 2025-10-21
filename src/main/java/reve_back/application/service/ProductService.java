@@ -157,6 +157,10 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Override
     public void deleteProduct(Long id) {
         ProductEntity productEntity = productRepositoryPort.findById(id);
+        // verifica que el producto este activo
+        if (!productEntity.is_active()) {
+            throw new RuntimeException("No se puede eliminar: el producto ya está inactivo o no existe.");
+        }
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         if (!bottles.isEmpty()) {
             boolean allExhausted = bottles.stream().allMatch(b-> b.volumeMl() == 0 && b.remainingVolumeMl() == 0);
