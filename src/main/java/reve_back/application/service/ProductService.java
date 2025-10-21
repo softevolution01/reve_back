@@ -85,6 +85,9 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Transactional(readOnly = true)
     public ProductDetailsResponse getProductDetails(Long id) {
         ProductEntity productEntity = productRepositoryPort.findById(id);
+        if (!productEntity.is_active()) {
+            throw new RuntimeException("Producto no encontrado o inactivo");
+        }
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         List<BottleCreationResponse> bottleResponses = bottles.stream()
                 .map(b -> new BottleCreationResponse(b.id(), b.barcode(), b.branchId(), b.volumeMl(),
