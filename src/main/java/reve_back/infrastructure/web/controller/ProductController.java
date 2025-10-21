@@ -7,22 +7,22 @@ import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.CreateProductUseCase;
 import reve_back.application.ports.in.GetProductDetailsUseCase;
 import reve_back.application.ports.in.ListProductsUseCase;
+import reve_back.application.ports.in.UpdateProductUseCase;
 import reve_back.domain.exception.DuplicateBarcodeException;
-import reve_back.infrastructure.web.dto.ProductCreationRequest;
-import reve_back.infrastructure.web.dto.ProductCreationResponse;
-import reve_back.infrastructure.web.dto.ProductDetailsResponse;
-import reve_back.infrastructure.web.dto.ProductSummaryDTO;
+import reve_back.infrastructure.web.dto.*;
 
 import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("products")
+@CrossOrigin
+@RequestMapping("api/products")
 public class ProductController {
 
     private final ListProductsUseCase listProductsUseCase;
     private final GetProductDetailsUseCase getProductDetailsUseCase;
     private final CreateProductUseCase createProductUseCase;
+    private final UpdateProductUseCase updateProductUseCase;
 
     @GetMapping
     public List<ProductSummaryDTO> getProducts(
@@ -54,6 +54,20 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
         }
 
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody ProductUpdateRequest request) {
+        try{
+            ProductDetailsResponse response = updateProductUseCase.updateProduct(id, request);
+            return ResponseEntity.ok(response);
+        } catch (DuplicateBarcodeException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado con ID: " + id);
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
+        }
     }
 
 }

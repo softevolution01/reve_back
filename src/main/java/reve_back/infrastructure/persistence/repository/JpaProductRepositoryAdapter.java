@@ -54,4 +54,9 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
         return springDataProductRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
     }
+
+    @Override
+    public ProductEntity update(ProductEntity productEntity) {
+        return springDataProductRepository.save(productEntity);
+    }
 }

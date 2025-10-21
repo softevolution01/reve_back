@@ -11,4 +11,5 @@ public interface ProductRepositoryPort {
     Product save(NewProduct product);
     List<ProductSummaryDTO> findAll(int page, int size);
     ProductEntity findById(Long id);
+    ProductEntity update(ProductEntity productEntity);
 }

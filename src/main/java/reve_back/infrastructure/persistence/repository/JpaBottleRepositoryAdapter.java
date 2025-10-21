@@ -59,4 +59,34 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         entity.getBranchId()))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<Bottle> updateAll(List<Bottle> bottles) {
+        List<BottleEntity> entities = bottles.stream()
+                .map(bottle -> {
+                    BottleEntity entity = bottle.id() != null ?
+                            springDataBottleRepository.findById(bottle.id())
+                                    .orElseThrow(() -> new RuntimeException("Botella no encontrada")) :
+                            new BottleEntity();
+                    entity.setProductId(bottle.productId());
+                    entity.setStatus(bottle.status());
+                    entity.setBarcode(bottle.barcode());
+                    entity.setVolumeMl(bottle.volumeMl());
+                    entity.setRemainingVolumeMl(bottle.remainingVolumeMl());
+                    entity.setBranchId(bottle.branchId());
+                    return entity;
+                })
+                .collect(Collectors.toList());
+        List<BottleEntity> savedEntities = springDataBottleRepository.saveAll(entities);
+        return savedEntities.stream()
+                .map(entity -> new Bottle(
+                        entity.getId(),
+                        entity.getProductId(),
+                        entity.getStatus(),
+                        entity.getBarcode(),
+                        entity.getVolumeMl(),
+                        entity.getRemainingVolumeMl(),
+                        entity.getBranchId()))
+                .collect(Collectors.toList());
+    }
 }

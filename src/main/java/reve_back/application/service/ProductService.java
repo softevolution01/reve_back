@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.CreateProductUseCase;
 import reve_back.application.ports.in.GetProductDetailsUseCase;
 import reve_back.application.ports.in.ListProductsUseCase;
+import reve_back.application.ports.in.UpdateProductUseCase;
 import reve_back.application.ports.out.BottleRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
@@ -23,7 +24,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
-public class ProductService implements ListProductsUseCase, CreateProductUseCase, GetProductDetailsUseCase {
+public class ProductService implements ListProductsUseCase, CreateProductUseCase, GetProductDetailsUseCase, UpdateProductUseCase {
 
 
     private final ProductRepositoryPort productRepositoryPort;
@@ -93,5 +94,56 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         return new ProductDetailsResponse(productEntity.getId(), productEntity.getBrand(), productEntity.getLine(),
                 productEntity.getConcentration(), productEntity.getPrice(), productEntity.getUnitVolumeMl(),
                 productEntity.getCreatedAt(), productEntity.getUpdatedAt(), bottleResponses);
+    }
+
+    @Override
+    @Transactional
+    public ProductDetailsResponse updateProduct(Long id, ProductUpdateRequest request) {
+        ProductEntity productEntity = productRepositoryPort.findById(id);
+        productEntity.setBrand(request.brand());
+        productEntity.setLine(request.line());
+        productEntity.setConcentration(request.concentration());
+        productEntity.setPrice(request.price());
+        productEntity.setUnitVolumeMl(request.unitVolumeMl());
+        ProductEntity updatedProduct = productRepositoryPort.update(productEntity);
+
+        // Manejar botellas
+        List<Bottle> existingBottles = bottleRepositoryPort.findAllByProductId(id);
+        List<Bottle> updatedBottles = request.bottles().stream()
+                .map(bottle -> {
+                    Bottle existing = existingBottles.stream()
+                            .filter(e -> e.barcode() != null && e.barcode().equals(bottle.barcode()))
+                            .findFirst()
+                            .orElse(null);
+                    if (existing != null) {
+                        return new Bottle(existing.id(), id, bottle.status(), bottle.barcode(),
+                                bottle.volumeMl(), bottle.remainingVolumeMl(), bottle.branchId());
+                    } else {
+                        return new Bottle(null, id, bottle.status(), bottle.barcode(),
+                                bottle.volumeMl(), bottle.remainingVolumeMl(), bottle.branchId());
+                    }
+                })
+                .collect(Collectors.toList());
+
+        try {
+            List<Bottle> savedBottles = bottleRepositoryPort.updateAll(updatedBottles);
+            List<BottleCreationResponse> bottleResponses = savedBottles.stream()
+                    .map(b -> new BottleCreationResponse(
+                            b.id(),
+                            b.barcode(),
+                            b.branchId(),
+                            b.volumeMl(),
+                            b.remainingVolumeMl(),
+                            b.status()))
+                    .collect(Collectors.toList());
+            return new ProductDetailsResponse(updatedProduct.getId(), updatedProduct.getBrand(), updatedProduct.getLine(),
+                    updatedProduct.getConcentration(), updatedProduct.getPrice(), updatedProduct.getUnitVolumeMl(),
+                    updatedProduct.getCreatedAt(), updatedProduct.getUpdatedAt(), bottleResponses);
+        } catch (DataIntegrityViolationException ex) {
+            if (ex.getMessage().contains("bottles_barcode_key")) {
+                throw new DuplicateBarcodeException("El código de barras ya está en uso. Usa un valor único.");
+            }
+            throw ex;
+        }
     }
 }

@@ -7,4 +7,5 @@ import java.util.List;
 public interface BottleRepositoryPort {
     List<Bottle> saveAll(List<Bottle> bottles);
     List<Bottle> findAllByProductId(Long productId);
+    List<Bottle> updateAll(List<Bottle> bottles);
 }
