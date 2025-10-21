@@ -30,6 +30,7 @@ public class ProductEntity {
     @Column(nullable = false)
     private Double price;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean is_active;
 
     @Column(name = "created_at")
