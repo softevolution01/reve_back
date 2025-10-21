@@ -102,6 +102,11 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Transactional
     public ProductDetailsResponse updateProduct(Long id, ProductUpdateRequest request) {
         ProductEntity productEntity = productRepositoryPort.findById(id);
+        // verifica que el producto este activo
+        if (!productEntity.is_active()) {
+            throw new RuntimeException("No se puede actualizar: el producto está inactivo o eliminado.");
+        }
+
         productEntity.setBrand(request.brand());
         productEntity.setLine(request.line());
         productEntity.setConcentration(request.concentration());
