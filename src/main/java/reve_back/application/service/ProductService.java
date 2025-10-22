@@ -2,90 +2,132 @@ package reve_back.application.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import reve_back.application.ports.in.CreateProductUseCase;
-import reve_back.application.ports.in.GetProductDetailsUseCase;
-import reve_back.application.ports.in.ListProductsUseCase;
-import reve_back.application.ports.in.UpdateProductUseCase;
+import reve_back.application.ports.in.*;
 import reve_back.application.ports.out.BottleRepositoryPort;
+import reve_back.application.ports.out.BranchRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
-import reve_back.domain.model.Bottle;
-import reve_back.domain.model.NewProduct;
-import reve_back.domain.model.Product;
+import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
-import reve_back.infrastructure.persistence.jpa.SpringDataProductRepository;
-import reve_back.infrastructure.persistence.repository.JpaProductRepositoryAdapter;
 import reve_back.infrastructure.web.dto.*;
 
+import java.security.SecureRandom;
 import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
-public class ProductService implements ListProductsUseCase, CreateProductUseCase, GetProductDetailsUseCase, UpdateProductUseCase {
+public class ProductService implements ListProductsUseCase, CreateProductUseCase, GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase {
 
 
     private final ProductRepositoryPort productRepositoryPort;
     private final BottleRepositoryPort bottleRepositoryPort;
+    private final BranchRepositoryPort branchRepositoryPort;
 
     @Override
+    @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
     public ProductCreationResponse createProduct(ProductCreationRequest request) {
+
+        // 1. Verificar si el producto ya existe (brand + line)
+        if (productRepositoryPort.existsByBrandAndLine(request.brand(), request.line())) {
+            throw new RuntimeException("El producto ya existe con esa marca y línea.");
+        }
+
+        // 2. Crear y guardar el producto
+        NewProduct newProduct = new NewProduct(
+                request.brand(),
+                request.line(),
+                request.concentration(),
+                request.price(),
+                request.unitVolumeMl()
+        );
+        Product savedProduct = productRepositoryPort.save(newProduct);
+
+        // 3. Obtener todas las sedes
+        List<Branch> branches = branchRepositoryPort.findAll();
+        if (branches.isEmpty()) {
+            throw new RuntimeException("No hay sedes registradas en el sistema.");
+        }
+
+        // 4. Generar botellas: 1 por sede
+        List<Bottle> bottles = branches.stream()
+                .map(branch -> new Bottle(
+                        null,
+                        savedProduct.id(),
+                        BottlesStatus.AGOTADA.getValue(),          // estado por defecto
+                        generateBarcode(12),               // barcode automático
+                        0,                                       // volumeMl = 0
+                        0,                                       // remainingVolumeMl = 0
+                        branch.id()                              // branchId de la sede
+                ))
+                .collect(Collectors.toList());
+        // 5. Guardar botellas
+        List<Bottle> savedBottles;
         try {
-            // Crea un nuevo producto
-            NewProduct newProduct = new NewProduct(request.brand(), request.line(), request.concentration(),
-                    request.price(), request.unitVolumeMl());
-            Product savedProduct = productRepositoryPort.save(newProduct);
-
-            // Crea botellas asociadas
-            List<Bottle> bottles = request.bottles().stream()
-                    .map(bottle -> new Bottle(
-                            null,
-                            savedProduct.id(),
-                            bottle.status(),
-                            bottle.barcode(),
-                            bottle.volumeMl(),
-                            bottle.remainingVolumeMl(),
-                            bottle.branchId()
-                    ))
-                    .collect(Collectors.toList());
-            List<Bottle> savedBottles = bottleRepositoryPort.saveAll(bottles);
-
-            // Mapear respuesta
-            List<BottleCreationResponse> bottleResponse = savedBottles.stream()
-                    .map(b -> new BottleCreationResponse(
-                            b.id(),
-                            b.barcode(),
-                            b.branchId(),
-                            b.volumeMl(),
-                            b.remainingVolumeMl(),
-                            b.status()))
-                    .collect(Collectors.toList());
-            return new ProductCreationResponse(
-                    savedProduct.id(),
-                    savedProduct.brand(),
-                    savedProduct.line(),
-                    savedProduct.concentration(),
-                    savedProduct.price(),
-                    bottleResponse);
+            savedBottles = bottleRepositoryPort.saveAll(bottles);
         } catch (DataIntegrityViolationException ex) {
-            if (ex.getMessage().contains("bottles_barcode_key")) {
-                throw new DuplicateBarcodeException("El código de barras ya está en uso. Usa un valor único.");
+            if (ex.getMessage() != null && ex.getMessage().contains("bottles_barcode_key")) {
+                throw new RuntimeException("Error al generar códigos de barras únicos. Intenta de nuevo.");
             }
             throw ex;
         }
+
+        // Mapear respuesta
+        List<BottleCreationResponse> bottleResponse = savedBottles.stream()
+                .map(b -> new BottleCreationResponse(
+                        b.id(),
+                        b.barcode(),
+                        b.branchId(),
+                        b.volumeMl(),
+                        b.remainingVolumeMl(),
+                        b.status()))
+                .collect(Collectors.toList());
+
+        return new ProductCreationResponse(
+                savedProduct.id(),
+                savedProduct.brand(),
+                savedProduct.line(),
+                savedProduct.concentration(),
+                savedProduct.price(),
+                bottleResponse);
+
+    }
+
+    private String generateBarcode(int length) {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        Random random = new SecureRandom();
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 
     @Override
-    public List<ProductSummaryDTO> findAll(int page, int size) {
-        return productRepositoryPort.findAll(page, size);
+    public ProductPageResponse findAll(int page, int size) {
+        Page<ProductSummaryDTO> productPage = productRepositoryPort.findAll(page, size);
+
+        return new ProductPageResponse(
+                productPage.getContent(),
+                productPage.getTotalElements(),
+                productPage.getTotalPages(),
+                productPage.getNumber(),
+                productPage.getSize()
+        );
     }
 
     @Override
     @Transactional(readOnly = true)
     public ProductDetailsResponse getProductDetails(Long id) {
         ProductEntity productEntity = productRepositoryPort.findById(id);
+        if (!productEntity.is_active()) {
+            throw new RuntimeException("Producto no encontrado o inactivo");
+        }
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         List<BottleCreationResponse> bottleResponses = bottles.stream()
                 .map(b -> new BottleCreationResponse(b.id(), b.barcode(), b.branchId(), b.volumeMl(),
@@ -100,6 +142,11 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Transactional
     public ProductDetailsResponse updateProduct(Long id, ProductUpdateRequest request) {
         ProductEntity productEntity = productRepositoryPort.findById(id);
+        // verifica que el producto este activo
+        if (!productEntity.is_active()) {
+            throw new RuntimeException("No se puede actualizar: el producto está inactivo o eliminado.");
+        }
+
         productEntity.setBrand(request.brand());
         productEntity.setLine(request.line());
         productEntity.setConcentration(request.concentration());
@@ -145,5 +192,23 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             }
             throw ex;
         }
+    }
+
+    @Override
+    public void deleteProduct(Long id) {
+        ProductEntity productEntity = productRepositoryPort.findById(id);
+        // verifica que el producto este activo
+        if (!productEntity.is_active()) {
+            throw new RuntimeException("No se puede eliminar: el producto ya está inactivo o no existe.");
+        }
+        List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
+        if (!bottles.isEmpty()) {
+            boolean allExhausted = bottles.stream().allMatch(b-> b.volumeMl() == 0 && b.remainingVolumeMl() == 0);
+            if (!allExhausted) {
+                throw new RuntimeException("No se puede eliminar: el producto tiene botellas asociadas no agotadas (volumen ml y volumen restante ml deben ser 0).");
+            }
+        }
+        productEntity.set_active(false);
+        productRepositoryPort.update(productEntity);
     }
 }

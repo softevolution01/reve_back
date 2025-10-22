@@ -8,4 +8,5 @@ import reve_back.infrastructure.persistence.entity.ProductEntity;
 public interface SpringDataProductRepository extends JpaRepository<ProductEntity,Long> {
 
     Page<ProductEntity> findAll(Pageable pageable);
+    boolean existsByBrandAndLine(String brand, String lines);
 }

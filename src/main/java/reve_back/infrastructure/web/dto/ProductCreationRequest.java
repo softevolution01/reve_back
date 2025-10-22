@@ -7,7 +7,7 @@ public record ProductCreationRequest(
         String line,
         String concentration,
         Double price,
-        Integer unitVolumeMl,
-        List<BottleCreationRequest> bottles
+        Integer unitVolumeMl
+//        List<BottleCreationRequest> bottles
 ) {
 }

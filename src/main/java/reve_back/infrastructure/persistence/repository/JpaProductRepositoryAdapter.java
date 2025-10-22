@@ -2,6 +2,7 @@ package reve_back.infrastructure.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.ProductRepositoryPort;
@@ -24,7 +25,7 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     public Product save(NewProduct product) {
         ProductEntity entity = new ProductEntity(
                         null, product.brand(), product.line(), product.concentration(),
-                        product.price(), null, null, product.unitVolumeMl()
+                        product.price(), true, null, null, product.unitVolumeMl()
                 );
         ProductEntity savedEntity = springDataProductRepository.save(entity);
         return new Product(
@@ -36,17 +37,20 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     }
 
     @Override
-    public List<ProductSummaryDTO> findAll(int page, int size) {
+    public Page<ProductSummaryDTO> findAll(int page, int size) {
         Page<ProductEntity> productPage = springDataProductRepository.findAll(PageRequest.of(page,size));
-        return productPage.getContent().stream()
+
+        List<ProductSummaryDTO> items = productPage.getContent().stream()
+                .filter(entity -> entity.is_active())
                 .map(entity -> new ProductSummaryDTO(
                         entity.getId(),
                         entity.getBrand(),
                         entity.getLine(),
                         entity.getConcentration(),
-                        entity.getPrice()
-                ))
+                        entity.getPrice()))
                 .collect(Collectors.toList());
+
+        return new PageImpl<>(items, PageRequest.of(page,size), productPage.getTotalElements());
     }
 
     @Override
@@ -58,5 +62,17 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public ProductEntity update(ProductEntity productEntity) {
         return springDataProductRepository.save(productEntity);
+    }
+
+    @Override
+    public void setInactiveById(Long id) {
+        ProductEntity productEntity = findById(id);
+        productEntity.set_active(false);
+        springDataProductRepository.save(productEntity);
+    }
+
+    @Override
+    public boolean existsByBrandAndLine(String brand, String lines) {
+        return springDataProductRepository.existsByBrandAndLine(brand, lines);
     }
 }
