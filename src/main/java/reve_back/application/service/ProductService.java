@@ -58,7 +58,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 .map(branch -> new Bottle(
                         null,
                         savedProduct.id(),
-                        BottlesStatus.DECANTADA.getValue(),          // estado por defecto
+                        BottlesStatus.AGOTADA.getValue(),          // estado por defecto
                         generateBarcode(12),               // barcode automático
                         0,                                       // volumeMl = 0
                         0,                                       // remainingVolumeMl = 0
