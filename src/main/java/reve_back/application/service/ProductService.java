@@ -147,6 +147,13 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             throw new RuntimeException("No se puede actualizar: el producto está inactivo o eliminado.");
         }
 
+        if (!productEntity.getBrand().equals(request.brand()) || !productEntity.getLine().equals(request.line())) {
+            boolean exists = productRepositoryPort.existsByBrandAndLineAndIdNot(request.brand(), request.line(), id);
+            if (exists) {
+                throw new DuplicateBarcodeException("Ya existe otro producto con esa marca y línea.");
+            }
+        }
+
         productEntity.setBrand(request.brand());
         productEntity.setLine(request.line());
         productEntity.setConcentration(request.concentration());
@@ -155,43 +162,29 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         ProductEntity updatedProduct = productRepositoryPort.update(productEntity);
 
         // Manejar botellas
-        List<Bottle> existingBottles = bottleRepositoryPort.findAllByProductId(id);
-        List<Bottle> updatedBottles = request.bottles().stream()
-                .map(bottle -> {
-                    Bottle existing = existingBottles.stream()
-                            .filter(e -> e.barcode() != null && e.barcode().equals(bottle.barcode()))
-                            .findFirst()
-                            .orElse(null);
-                    if (existing != null) {
-                        return new Bottle(existing.id(), id, bottle.status(), bottle.barcode(),
-                                bottle.volumeMl(), bottle.remainingVolumeMl(), bottle.branchId());
-                    } else {
-                        return new Bottle(null, id, bottle.status(), bottle.barcode(),
-                                bottle.volumeMl(), bottle.remainingVolumeMl(), bottle.branchId());
-                    }
-                })
+        List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
+        List<BottleCreationResponse> bottleResponses = bottles.stream()
+                .map(b -> new BottleCreationResponse(
+                        b.id(),
+                        b.barcode(),
+                        b.branchId(),
+                        b.volumeMl(),
+                        b.remainingVolumeMl(),
+                        b.status()
+                ))
                 .collect(Collectors.toList());
 
-        try {
-            List<Bottle> savedBottles = bottleRepositoryPort.updateAll(updatedBottles);
-            List<BottleCreationResponse> bottleResponses = savedBottles.stream()
-                    .map(b -> new BottleCreationResponse(
-                            b.id(),
-                            b.barcode(),
-                            b.branchId(),
-                            b.volumeMl(),
-                            b.remainingVolumeMl(),
-                            b.status()))
-                    .collect(Collectors.toList());
-            return new ProductDetailsResponse(updatedProduct.getId(), updatedProduct.getBrand(), updatedProduct.getLine(),
-                    updatedProduct.getConcentration(), updatedProduct.getPrice(), updatedProduct.getUnitVolumeMl(),
-                    updatedProduct.getCreatedAt(), updatedProduct.getUpdatedAt(), bottleResponses);
-        } catch (DataIntegrityViolationException ex) {
-            if (ex.getMessage().contains("bottles_barcode_key")) {
-                throw new DuplicateBarcodeException("El código de barras ya está en uso. Usa un valor único.");
-            }
-            throw ex;
-        }
+        return new ProductDetailsResponse(
+                updatedProduct.getId(),
+                updatedProduct.getBrand(),
+                updatedProduct.getLine(),
+                updatedProduct.getConcentration(),
+                updatedProduct.getPrice(),
+                updatedProduct.getUnitVolumeMl(),
+                updatedProduct.getCreatedAt(),
+                updatedProduct.getUpdatedAt(),
+                bottleResponses
+        );
     }
 
     @Override

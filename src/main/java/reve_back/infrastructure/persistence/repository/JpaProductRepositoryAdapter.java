@@ -75,4 +75,9 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     public boolean existsByBrandAndLine(String brand, String lines) {
         return springDataProductRepository.existsByBrandAndLine(brand, lines);
     }
+
+    @Override
+    public boolean existsByBrandAndLineAndIdNot(String brand, String lines, Long id) {
+        return springDataProductRepository.existsByBrandAndLineAndIdNot(brand, lines, id);
+    }
 }
