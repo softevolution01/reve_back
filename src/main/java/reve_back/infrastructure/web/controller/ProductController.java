@@ -47,13 +47,17 @@ public class ProductController {
         try{
             ProductCreationResponse response = createProductUseCase.createProduct(request);
             return new ResponseEntity<>(response, HttpStatus.CREATED);
-        } catch (DataIntegrityViolationException ex) {
-            if (ex.getMessage().contains("bottles_barcode_key")) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("El código de barras ya está en uso. Usa un valor único.");
+        } catch (RuntimeException ex) {
+            String message = ex.getMessage();
+            if (message.contains("ya existe")) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(message);
             }
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
+            if (message.contains("no hay sedes")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(message);
         } catch (Exception ex) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado");
         }
     }
 

@@ -6,15 +6,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.*;
 import reve_back.application.ports.out.BottleRepositoryPort;
+import reve_back.application.ports.out.BranchRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
-import reve_back.domain.model.Bottle;
-import reve_back.domain.model.NewProduct;
-import reve_back.domain.model.Product;
+import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.web.dto.*;
 
+import java.security.SecureRandom;
 import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -24,34 +26,52 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
     private final ProductRepositoryPort productRepositoryPort;
     private final BottleRepositoryPort bottleRepositoryPort;
+    private final BranchRepositoryPort branchRepositoryPort;
 
     @Override
     @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
     public ProductCreationResponse createProduct(ProductCreationRequest request) {
 
-        // Crea un nuevo producto
-        NewProduct newProduct = new NewProduct(request.brand(), request.line(), request.concentration(),
-                request.price(), request.unitVolumeMl());
+        // 1. Verificar si el producto ya existe (brand + line)
+        if (productRepositoryPort.existsByBrandAndLine(request.brand(), request.line())) {
+            throw new RuntimeException("El producto ya existe con esa marca y línea.");
+        }
+
+        // 2. Crear y guardar el producto
+        NewProduct newProduct = new NewProduct(
+                request.brand(),
+                request.line(),
+                request.concentration(),
+                request.price(),
+                request.unitVolumeMl()
+        );
         Product savedProduct = productRepositoryPort.save(newProduct);
 
-        // Crea botellas asociadas
-        List<Bottle> bottles = request.bottles().stream()
-                .map(bottle -> new Bottle(
+        // 3. Obtener todas las sedes
+        List<Branch> branches = branchRepositoryPort.findAll();
+        if (branches.isEmpty()) {
+            throw new RuntimeException("No hay sedes registradas en el sistema.");
+        }
+
+        // 4. Generar botellas: 1 por sede
+        List<Bottle> bottles = branches.stream()
+                .map(branch -> new Bottle(
                         null,
                         savedProduct.id(),
-                        bottle.status(),
-                        bottle.barcode(),
-                        bottle.volumeMl(),
-                        bottle.remainingVolumeMl(),
-                        bottle.branchId()
+                        BottlesStatus.DECANTADA.getValue(),          // estado por defecto
+                        generateBarcode(12),               // barcode automático
+                        0,                                       // volumeMl = 0
+                        0,                                       // remainingVolumeMl = 0
+                        branch.id()                              // branchId de la sede
                 ))
                 .collect(Collectors.toList());
+        // 5. Guardar botellas
         List<Bottle> savedBottles;
         try {
             savedBottles = bottleRepositoryPort.saveAll(bottles);
         } catch (DataIntegrityViolationException ex) {
-            if (ex.getMessage().contains("bottles_barcode_key")) {
-                throw new DuplicateBarcodeException("El código de barras ya está en uso. Usa un valor único.");
+            if (ex.getMessage() != null && ex.getMessage().contains("bottles_barcode_key")) {
+                throw new RuntimeException("Error al generar códigos de barras únicos. Intenta de nuevo.");
             }
             throw ex;
         }
@@ -66,6 +86,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.remainingVolumeMl(),
                         b.status()))
                 .collect(Collectors.toList());
+
         return new ProductCreationResponse(
                 savedProduct.id(),
                 savedProduct.brand(),
@@ -74,6 +95,16 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 savedProduct.price(),
                 bottleResponse);
 
+    }
+
+    private String generateBarcode(int length) {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        Random random = new SecureRandom();
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 
     @Override

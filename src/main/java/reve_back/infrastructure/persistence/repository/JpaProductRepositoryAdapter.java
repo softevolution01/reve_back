@@ -67,4 +67,9 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
         productEntity.set_active(false);
         springDataProductRepository.save(productEntity);
     }
+
+    @Override
+    public boolean existsByBrandAndLine(String brand, String lines) {
+        return springDataProductRepository.existsByBrandAndLine(brand, lines);
+    }
 }
