@@ -9,4 +9,5 @@ public interface SpringDataProductRepository extends JpaRepository<ProductEntity
 
     Page<ProductEntity> findAll(Pageable pageable);
     boolean existsByBrandAndLine(String brand, String lines);
+    boolean existsByBrandAndLineAndIdNot(String brand, String lines,Long id);
 }

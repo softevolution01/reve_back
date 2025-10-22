@@ -15,4 +15,5 @@ public interface ProductRepositoryPort {
     ProductEntity update(ProductEntity productEntity);
     void setInactiveById(Long id);
     boolean existsByBrandAndLine(String brand, String lines);
+    boolean existsByBrandAndLineAndIdNot(String brand, String lines, Long id);
 }

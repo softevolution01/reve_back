@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.*;
 import reve_back.domain.exception.DuplicateBarcodeException;
+import reve_back.domain.exception.DuplicateProductNameException;
 import reve_back.infrastructure.web.dto.*;
 
 import java.util.List;
@@ -37,9 +38,13 @@ public class ProductController {
         try{
             ProductDetailsResponse response = getProductDetailsUseCase.getProductDetails(id);
             return ResponseEntity.ok(response);
-        }catch (RuntimeException ex){
-            String errorMessage = "Producto no encontrado con ID: " + id;
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorMessage);
+        } catch (DuplicateProductNameException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+        } catch (RuntimeException ex) {
+            if (ex.getMessage().contains("inactivo") || ex.getMessage().contains("no encontrado")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
         }
     }
 
