@@ -24,11 +24,12 @@ public class ProductController {
     private final DeleteProductUseCase deleteProductUseCase;
 
     @GetMapping
-    public List<ProductSummaryDTO> getProducts(
+    public ResponseEntity<ProductPageResponse> getProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        return listProductsUseCase.findAll(page, size);
+        ProductPageResponse response = listProductsUseCase.findAll(page, size);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")

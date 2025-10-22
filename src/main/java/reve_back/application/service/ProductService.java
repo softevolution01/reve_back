@@ -2,6 +2,7 @@ package reve_back.application.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.*;
@@ -108,8 +109,16 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     }
 
     @Override
-    public List<ProductSummaryDTO> findAll(int page, int size) {
-        return productRepositoryPort.findAll(page, size);
+    public ProductPageResponse findAll(int page, int size) {
+        Page<ProductSummaryDTO> productPage = productRepositoryPort.findAll(page, size);
+
+        return new ProductPageResponse(
+                productPage.getContent(),
+                productPage.getTotalElements(),
+                productPage.getTotalPages(),
+                productPage.getNumber(),
+                productPage.getSize()
+        );
     }
 
     @Override

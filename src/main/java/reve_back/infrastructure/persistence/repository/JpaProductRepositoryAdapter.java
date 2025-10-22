@@ -2,6 +2,7 @@ package reve_back.infrastructure.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.ProductRepositoryPort;
@@ -36,18 +37,20 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     }
 
     @Override
-    public List<ProductSummaryDTO> findAll(int page, int size) {
+    public Page<ProductSummaryDTO> findAll(int page, int size) {
         Page<ProductEntity> productPage = springDataProductRepository.findAll(PageRequest.of(page,size));
-        return productPage.getContent().stream()
+
+        List<ProductSummaryDTO> items = productPage.getContent().stream()
                 .filter(entity -> entity.is_active())
                 .map(entity -> new ProductSummaryDTO(
                         entity.getId(),
                         entity.getBrand(),
                         entity.getLine(),
                         entity.getConcentration(),
-                        entity.getPrice()
-                ))
+                        entity.getPrice()))
                 .collect(Collectors.toList());
+
+        return new PageImpl<>(items, PageRequest.of(page,size), productPage.getTotalElements());
     }
 
     @Override
