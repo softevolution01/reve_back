@@ -38,6 +38,9 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
 
     @Override
     public Page<ProductSummaryDTO> findAll(int page, int size) {
+
+        long totalActive = springDataProductRepository.countByIsActiveTrue();
+
         Page<ProductEntity> productPage = springDataProductRepository.findAll(PageRequest.of(page,size));
 
         List<ProductSummaryDTO> items = productPage.getContent().stream()
@@ -50,7 +53,7 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
                         entity.getPrice()))
                 .collect(Collectors.toList());
 
-        return new PageImpl<>(items, PageRequest.of(page,size), productPage.getTotalElements());
+        return new PageImpl<>(items, PageRequest.of(page,size), totalActive);
     }
 
     @Override
