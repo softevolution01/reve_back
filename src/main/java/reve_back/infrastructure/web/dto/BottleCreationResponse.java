@@ -6,6 +6,7 @@ public record BottleCreationResponse(
         Long branchId,
         Integer volumeMl,
         Integer remainingVolumeMl,
+        Integer quantity,
         String status
 ) {
 }

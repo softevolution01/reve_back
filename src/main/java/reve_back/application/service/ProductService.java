@@ -63,6 +63,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         generateBarcode(12),               // barcode automático
                         0,                                       // volumeMl = 0
                         0,                                       // remainingVolumeMl = 0
+                        0,
                         branch.id()                              // branchId de la sede
                 ))
                 .collect(Collectors.toList());
@@ -85,6 +86,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.branchId(),
                         b.volumeMl(),
                         b.remainingVolumeMl(),
+                        b.quantity(),
                         b.status()))
                 .collect(Collectors.toList());
 
@@ -131,7 +133,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         List<BottleCreationResponse> bottleResponses = bottles.stream()
                 .map(b -> new BottleCreationResponse(b.id(), b.barcode(), b.branchId(), b.volumeMl(),
-                        b.remainingVolumeMl(), b.status()))
+                        b.remainingVolumeMl(),b.quantity(), b.status()))
                 .collect(Collectors.toList());
         return new ProductDetailsResponse(productEntity.getId(), productEntity.getBrand(), productEntity.getLine(),
                 productEntity.getConcentration(), productEntity.getPrice(), productEntity.getUnitVolumeMl(),
@@ -170,6 +172,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.branchId(),
                         b.volumeMl(),
                         b.remainingVolumeMl(),
+                        b.quantity(),
                         b.status()
                 ))
                 .collect(Collectors.toList());
