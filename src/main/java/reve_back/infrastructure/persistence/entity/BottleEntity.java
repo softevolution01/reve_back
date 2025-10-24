@@ -33,6 +33,9 @@ public class BottleEntity {
     @Column(name = "remaining_volume_ml", nullable = false)
     private Integer remainingVolumeMl;
 
+    @Column(nullable = false)
+    private Integer quantity;
+
     @Column(name = "branch_id", nullable = false)
     private Long branchId;
 

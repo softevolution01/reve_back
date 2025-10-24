@@ -48,24 +48,43 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         );
         Product savedProduct = productRepositoryPort.save(newProduct);
 
-        // 3. Obtener todas las sedes
-        List<Branch> branches = branchRepositoryPort.findAll();
-        if (branches.isEmpty()) {
-            throw new RuntimeException("No hay sedes registradas en el sistema.");
+        List<Bottle> bottles;
+
+        if (request.bottles() == null || request.bottles().isEmpty()) {
+            // CASO 1: SIN BOTELLAS → AUTOMÁTICAS
+            List<Branch> branches = branchRepositoryPort.findAll();
+            if (branches.isEmpty()) {
+                throw new RuntimeException("No hay sedes registradas en el sistema.");
+            }
+
+            bottles = branches.stream()
+                    .map(branch -> new Bottle(
+                            null,
+                            savedProduct.id(),
+                            BottlesStatus.AGOTADA.getValue(),          // estado por defecto
+                            generateBarcode(12),               // barcode automático
+                            0,                                       // volumeMl = 0
+                            0,                                       // remainingVolumeMl = 0
+                            0,
+                            branch.id()                              // branchId de la sede
+                    ))
+                    .collect(Collectors.toList());
+
+        }else {
+            bottles = request.bottles().stream()
+                    .map(req -> new Bottle(
+                            null,
+                            savedProduct.id(),
+                            req.status(),
+                            generateBarcode(12),
+                            req.volumeMl(),
+                            req.remainingVolumeMl(),
+                            req.quantity(),
+                            req.branchId()
+                    ))
+                    .collect(Collectors.toList());
         }
 
-        // 4. Generar botellas: 1 por sede
-        List<Bottle> bottles = branches.stream()
-                .map(branch -> new Bottle(
-                        null,
-                        savedProduct.id(),
-                        BottlesStatus.AGOTADA.getValue(),          // estado por defecto
-                        generateBarcode(12),               // barcode automático
-                        0,                                       // volumeMl = 0
-                        0,                                       // remainingVolumeMl = 0
-                        branch.id()                              // branchId de la sede
-                ))
-                .collect(Collectors.toList());
         // 5. Guardar botellas
         List<Bottle> savedBottles;
         try {
@@ -85,6 +104,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.branchId(),
                         b.volumeMl(),
                         b.remainingVolumeMl(),
+                        b.quantity(),
                         b.status()))
                 .collect(Collectors.toList());
 
@@ -131,7 +151,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         List<BottleCreationResponse> bottleResponses = bottles.stream()
                 .map(b -> new BottleCreationResponse(b.id(), b.barcode(), b.branchId(), b.volumeMl(),
-                        b.remainingVolumeMl(), b.status()))
+                        b.remainingVolumeMl(),b.quantity(), b.status()))
                 .collect(Collectors.toList());
         return new ProductDetailsResponse(productEntity.getId(), productEntity.getBrand(), productEntity.getLine(),
                 productEntity.getConcentration(), productEntity.getPrice(), productEntity.getUnitVolumeMl(),
@@ -170,6 +190,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.branchId(),
                         b.volumeMl(),
                         b.remainingVolumeMl(),
+                        b.quantity(),
                         b.status()
                 ))
                 .collect(Collectors.toList());

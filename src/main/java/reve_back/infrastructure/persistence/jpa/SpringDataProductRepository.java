@@ -3,6 +3,7 @@ package reve_back.infrastructure.persistence.jpa;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
 
 public interface SpringDataProductRepository extends JpaRepository<ProductEntity,Long> {
@@ -10,4 +11,7 @@ public interface SpringDataProductRepository extends JpaRepository<ProductEntity
     Page<ProductEntity> findAll(Pageable pageable);
     boolean existsByBrandAndLine(String brand, String lines);
     boolean existsByBrandAndLineAndIdNot(String brand, String lines,Long id);
+
+    @Query("SELECT COUNT(p) FROM ProductEntity p WHERE p.is_active = true")
+    long countByIsActiveTrue();
 }

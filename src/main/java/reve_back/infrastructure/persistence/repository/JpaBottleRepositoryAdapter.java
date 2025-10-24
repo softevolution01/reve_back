@@ -26,6 +26,7 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         bottle.barcode(),
                         bottle.volumeMl(),
                         bottle.remainingVolumeMl(),
+                        bottle.quantity(),
                         bottle.branchId(),
                         null,
                         null
@@ -41,6 +42,7 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         entity.getBarcode(),
                         entity.getVolumeMl(),
                         entity.getRemainingVolumeMl(),
+                        entity.getQuantity(),
                         entity.getBranchId()))
                 .collect(Collectors.toList());
     }
@@ -56,6 +58,7 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         entity.getBarcode(),
                         entity.getVolumeMl(),
                         entity.getRemainingVolumeMl(),
+                        entity.getQuantity(),
                         entity.getBranchId()))
                 .collect(Collectors.toList());
     }
@@ -86,6 +89,7 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         entity.getBarcode(),
                         entity.getVolumeMl(),
                         entity.getRemainingVolumeMl(),
+                        entity.getQuantity(),
                         entity.getBranchId()))
                 .collect(Collectors.toList());
     }

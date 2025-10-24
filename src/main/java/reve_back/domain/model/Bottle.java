@@ -7,6 +7,7 @@ public record Bottle(
         String barcode,
         Integer volumeMl,
         Integer remainingVolumeMl,
+        Integer quantity,
         Long branchId
 ) {
 }
