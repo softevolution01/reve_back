@@ -12,6 +12,7 @@ import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
+import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
 import java.security.SecureRandom;
@@ -43,8 +44,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 request.brand(),
                 request.line(),
                 request.concentration(),
-                request.price(),
-                request.unitVolumeMl()
+                request.price()
         );
         Product savedProduct = productRepositoryPort.save(newProduct);
 
@@ -105,7 +105,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.volumeMl(),
                         b.remainingVolumeMl(),
                         b.quantity(),
-                        b.status()))
+                        b.status(),
+                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())))
                 .collect(Collectors.toList());
 
         return new ProductCreationResponse(
@@ -131,9 +132,35 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Override
     public ProductPageResponse findAll(int page, int size) {
         Page<ProductSummaryDTO> productPage = productRepositoryPort.findAll(page, size);
+        List<ProductListResponse> items = productPage.getContent().stream()
+                .map(dto -> {
+                    List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(dto.id());
+                    List<BottleCreationResponse> bottleResponses = bottles.stream()
+                            .map(b -> new BottleCreationResponse(
+                                    b.id(),
+                                    b.barcode(),
+                                    b.branchId(),
+                                    b.volumeMl(),
+                                    b.remainingVolumeMl(),
+                                    b.quantity(),
+                                    b.status(),
+                                    BarcodeGenerator.generateBarcodeImageBase64(b.barcode()) // GENERADO AQUÍ
+                            ))
+                            .collect(Collectors.toList());
+
+                    return new ProductListResponse(
+                            dto.id(),
+                            dto.brand(),
+                            dto.line(),
+                            dto.concentration(),
+                            dto.price(),
+                            bottleResponses
+                    );
+                })
+                .collect(Collectors.toList());
 
         return new ProductPageResponse(
-                productPage.getContent(),
+                items,
                 productPage.getTotalElements(),
                 productPage.getTotalPages(),
                 productPage.getNumber(),
@@ -151,10 +178,13 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         List<BottleCreationResponse> bottleResponses = bottles.stream()
                 .map(b -> new BottleCreationResponse(b.id(), b.barcode(), b.branchId(), b.volumeMl(),
-                        b.remainingVolumeMl(),b.quantity(), b.status()))
+                        b.remainingVolumeMl(),
+                        b.quantity(),
+                        b.status(),
+                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())))
                 .collect(Collectors.toList());
         return new ProductDetailsResponse(productEntity.getId(), productEntity.getBrand(), productEntity.getLine(),
-                productEntity.getConcentration(), productEntity.getPrice(), productEntity.getUnitVolumeMl(),
+                productEntity.getConcentration(), productEntity.getPrice(),
                 productEntity.getCreatedAt(), productEntity.getUpdatedAt(), bottleResponses);
     }
 
@@ -178,7 +208,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         productEntity.setLine(request.line());
         productEntity.setConcentration(request.concentration());
         productEntity.setPrice(request.price());
-        productEntity.setUnitVolumeMl(request.unitVolumeMl());
         ProductEntity updatedProduct = productRepositoryPort.update(productEntity);
 
         // Manejar botellas
@@ -191,7 +220,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.volumeMl(),
                         b.remainingVolumeMl(),
                         b.quantity(),
-                        b.status()
+                        b.status(),
+                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
                 ))
                 .collect(Collectors.toList());
 
@@ -201,7 +231,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 updatedProduct.getLine(),
                 updatedProduct.getConcentration(),
                 updatedProduct.getPrice(),
-                updatedProduct.getUnitVolumeMl(),
                 updatedProduct.getCreatedAt(),
                 updatedProduct.getUpdatedAt(),
                 bottleResponses

@@ -41,6 +41,4 @@ public class ProductEntity {
     @UpdateTimestamp
     private java.time.LocalDateTime updatedAt;
 
-    @Column(name = "unit_volume_ml", nullable = false)
-    private Integer unitVolumeMl;
 }

@@ -7,6 +7,7 @@ public record BottleCreationResponse(
         Integer volumeMl,
         Integer remainingVolumeMl,
         Integer quantity,
-        String status
+        String status,
+        String barcodeImage
 ) {
 }
