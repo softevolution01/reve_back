@@ -43,8 +43,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 request.brand(),
                 request.line(),
                 request.concentration(),
-                request.price(),
-                request.unitVolumeMl()
+                request.price()
         );
         Product savedProduct = productRepositoryPort.save(newProduct);
 
@@ -154,7 +153,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.remainingVolumeMl(),b.quantity(), b.status()))
                 .collect(Collectors.toList());
         return new ProductDetailsResponse(productEntity.getId(), productEntity.getBrand(), productEntity.getLine(),
-                productEntity.getConcentration(), productEntity.getPrice(), productEntity.getUnitVolumeMl(),
+                productEntity.getConcentration(), productEntity.getPrice(),
                 productEntity.getCreatedAt(), productEntity.getUpdatedAt(), bottleResponses);
     }
 
@@ -178,7 +177,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         productEntity.setLine(request.line());
         productEntity.setConcentration(request.concentration());
         productEntity.setPrice(request.price());
-        productEntity.setUnitVolumeMl(request.unitVolumeMl());
         ProductEntity updatedProduct = productRepositoryPort.update(productEntity);
 
         // Manejar botellas
@@ -201,7 +199,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 updatedProduct.getLine(),
                 updatedProduct.getConcentration(),
                 updatedProduct.getPrice(),
-                updatedProduct.getUnitVolumeMl(),
                 updatedProduct.getCreatedAt(),
                 updatedProduct.getUpdatedAt(),
                 bottleResponses

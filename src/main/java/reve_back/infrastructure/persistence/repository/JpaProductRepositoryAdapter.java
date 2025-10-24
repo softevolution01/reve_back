@@ -25,7 +25,7 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     public Product save(NewProduct product) {
         ProductEntity entity = new ProductEntity(
                         null, product.brand(), product.line(), product.concentration(),
-                        product.price(), true, null, null, product.unitVolumeMl()
+                        product.price(), true, null, null
                 );
         ProductEntity savedEntity = springDataProductRepository.save(entity);
         return new Product(
