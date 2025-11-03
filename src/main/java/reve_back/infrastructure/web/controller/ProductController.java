@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.*;
 import reve_back.domain.exception.DuplicateBarcodeException;
@@ -25,6 +26,7 @@ public class ProductController {
     private final DeleteProductUseCase deleteProductUseCase;
 
     @GetMapping
+    @PreAuthorize("hasAuthority('product:read:all')")
     public ResponseEntity<ProductPageResponse> getProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -34,6 +36,7 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('product:read:all')")
     public ResponseEntity<?> getProductDetails(@PathVariable Long id) {
         try{
             ProductDetailsResponse response = getProductDetailsUseCase.getProductDetails(id);
@@ -49,6 +52,7 @@ public class ProductController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('product:read:all')")
     public ResponseEntity<?> createProduct(@RequestBody ProductCreationRequest request) {
         try{
             ProductCreationResponse response = createProductUseCase.createProduct(request);
