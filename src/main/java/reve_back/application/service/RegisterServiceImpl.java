@@ -1,6 +1,7 @@
 package reve_back.application.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import reve_back.application.ports.in.AuthResponse;
@@ -18,6 +19,9 @@ import java.util.Set;
 @Service
 public class RegisterServiceImpl implements RegisterUseCase {
 
+    @Value("${user.role}")
+    private String USER_ROLE;
+
     private final UserRepositoryPort userRepositoryPort;
     private final RoleRepositoryPort roleRepositoryPort;
     private final PasswordEncoder passwordEncoder;
@@ -31,7 +35,7 @@ public class RegisterServiceImpl implements RegisterUseCase {
         if (userRepositoryPort.existsByEmail(command.username())){
             throw new RuntimeException("Error: El email ya esta en uso.");
         }
-        Role defaultRole = roleRepositoryPort.findByName("Administrador")
+        Role defaultRole = roleRepositoryPort.findByName(USER_ROLE)
                 .orElseThrow(() -> new RuntimeException("Error: Rol 'Cliente' no encontrado."));
         String hashedPassword = passwordEncoder.encode(command.rawPassword());
 

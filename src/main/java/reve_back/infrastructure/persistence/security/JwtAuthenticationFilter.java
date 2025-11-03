@@ -25,9 +25,6 @@ import java.util.stream.Collectors;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    @Value("${user.role}")
-    private String ROLE;
-
     private final JwtTokenPort jwtTokenPort;
 
     @Override
@@ -48,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtTokenPort.extractClaims(jwt);
                 String username = claims.getSubject();
 
-                List<String> permissionsList = (List<String>) claims.get(ROLE);
+                List<String> permissionsList = (List<String>) claims.get("permissions");
 
                 List<GrantedAuthority> authorities = permissionsList.stream()
                         .map(SimpleGrantedAuthority::new)
