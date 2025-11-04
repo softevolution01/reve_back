@@ -3,16 +3,14 @@ package reve_back.infrastructure.web.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.*;
 import reve_back.infrastructure.web.dto.LoginRequest;
 import reve_back.infrastructure.web.dto.RegisterRequest;
 
 @RequiredArgsConstructor
 @RestController
+@CrossOrigin
 @RequestMapping("/auth")
 public class AuthController {
 
