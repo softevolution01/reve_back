@@ -1,5 +1,5 @@
 -- ==================================================================
--- 1. INSERTAR ROLES (exactamente como en el PDF)
+-- 1. INSERTAR ROLES
 -- ==================================================================
 INSERT INTO roles (name) VALUES
 ('Administrador'),
@@ -10,16 +10,16 @@ INSERT INTO roles (name) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ==================================================================
--- 2. INSERTAR PERMISOS (exactamente como en el PDF)
+-- 2. INSERTAR PERMISOS
 -- ==================================================================
 INSERT INTO permissions (name) VALUES
 ('menu:sales:access'),
 ('menu:inventory:access'),
 ('sale:create'),
-('product:read:all');
-
+('product:read:all')
+ON CONFLICT (name) DO NOTHING;
 -- ==================================================================
--- 3. ASIGNAR PERMISOS A ROLES (según lógica del PDF)
+-- 3. ASIGNAR PERMISOS A ROLES
 -- ==================================================================
 
 -- Administrador: todos los permisos
@@ -30,7 +30,7 @@ WHERE r.name = 'Administrador'
   AND p.name IN ('menu:sales:access', 'menu:inventory:access', 'sale:create', 'product:read:all')
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
--- Subadministrador: todos menos (por defecto, igual que admin en este caso)
+-- Subadministrador: todos menos
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
