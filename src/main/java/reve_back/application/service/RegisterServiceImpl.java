@@ -19,9 +19,6 @@ import java.util.Set;
 @Service
 public class RegisterServiceImpl implements RegisterUseCase {
 
-    @Value("${user.role}")
-    private String USER_ROLE;
-
     private final UserRepositoryPort userRepositoryPort;
     private final RoleRepositoryPort roleRepositoryPort;
     private final PasswordEncoder passwordEncoder;
@@ -35,8 +32,9 @@ public class RegisterServiceImpl implements RegisterUseCase {
         if (userRepositoryPort.existsByEmail(command.username())){
             throw new RuntimeException("Error: El email ya esta en uso.");
         }
-        Role defaultRole = roleRepositoryPort.findByName(USER_ROLE)
-                .orElseThrow(() -> new RuntimeException("Error: Rol 'Cliente' no encontrado."));
+        Role roleToAssign = roleRepositoryPort.findByName(command.rolName())
+                .orElseThrow(() -> new RuntimeException(
+                        "Error: El tipo de rol '" + command.rolName() + "' no existe."));
         String hashedPassword = passwordEncoder.encode(command.rawPassword());
 
         User newUser = new User(
@@ -45,7 +43,7 @@ public class RegisterServiceImpl implements RegisterUseCase {
                 command.email(),
                 command.phone(),
                 hashedPassword,
-                Set.of(defaultRole),
+                Set.of(roleToAssign),
                 null // asigna el rol "Cliente"
         );
 

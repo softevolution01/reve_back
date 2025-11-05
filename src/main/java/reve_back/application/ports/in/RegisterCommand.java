@@ -5,6 +5,7 @@ public record RegisterCommand(
         String fullname,
         String email,
         String phone,
-        String rawPassword
+        String rawPassword,
+        String rolName
 ) {
 }

@@ -3,6 +3,7 @@ package reve_back.infrastructure.web.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.*;
 import reve_back.infrastructure.web.dto.LoginRequest;
@@ -18,13 +19,15 @@ public class AuthController {
     private final LoginUseCase loginUseCase;
 
     @PostMapping("/register")
+//    @PreAuthorize("hasAuthority('menu:sales:access')")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest dto){
         RegisterCommand command = new RegisterCommand(
                 dto.username(),
                 dto.fullname(),
                 dto.email(),
                 dto.phone(),
-                dto.password()
+                dto.password(),
+                dto.roleName()
         );
         return ResponseEntity.ok(registerUseCase.register(command));
     }
