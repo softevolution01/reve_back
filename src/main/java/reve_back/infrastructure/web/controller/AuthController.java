@@ -11,7 +11,6 @@ import reve_back.infrastructure.web.dto.RegisterRequest;
 
 @RequiredArgsConstructor
 @RestController
-@CrossOrigin
 @RequestMapping("/auth")
 public class AuthController {
 

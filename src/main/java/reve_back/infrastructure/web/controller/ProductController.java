@@ -15,7 +15,6 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@CrossOrigin
 @RequestMapping("api/products")
 public class ProductController {
 
