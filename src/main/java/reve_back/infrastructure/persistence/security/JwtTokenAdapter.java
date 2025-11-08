@@ -7,6 +7,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import reve_back.application.ports.out.JwtTokenPort;
+import reve_back.domain.model.Branch;
 import reve_back.domain.model.Permission;
 import reve_back.domain.model.Role;
 import reve_back.domain.model.User;
@@ -42,8 +43,12 @@ public class JwtTokenAdapter implements JwtTokenPort {
         List<String> roleNames = user.roles().stream()
                         .map(Role::name)
                                 .collect(Collectors.toList());
-
         claims.put("roles", roleNames);
+        List<String> branchNames = user.branches().stream()
+                .map(Branch::name)
+                .collect(Collectors.toList());
+        claims.put("branches", branchNames);
+
         claims.put("fullname", user.fullname());
         claims.put("email", user.email());
 

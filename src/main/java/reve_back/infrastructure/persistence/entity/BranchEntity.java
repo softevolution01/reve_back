@@ -6,6 +6,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -21,4 +24,7 @@ public class BranchEntity {
     private String name;
 
     private String location;
+
+    @ManyToMany(mappedBy = "branches", fetch = FetchType.LAZY)
+    private Set<UserEntity> users = new HashSet<>();
 }

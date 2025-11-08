@@ -7,6 +7,7 @@ import reve_back.domain.model.Branch;
 import reve_back.infrastructure.persistence.jpa.SpringDataBranchRepository;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -23,5 +24,15 @@ public class JpaBranchRepositoryAdapter implements BranchRepositoryPort {
                         e.getName(),
                         e.getLocation()))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Set<Branch> findByNames(Set<String> names) {
+        return springDataBranchRepository.findAllByNameIn(names).stream()
+                .map(e -> new Branch(
+                        e.getId(),
+                        e.getName(),
+                        e.getLocation()))
+                .collect(Collectors.toSet());
     }
 }
