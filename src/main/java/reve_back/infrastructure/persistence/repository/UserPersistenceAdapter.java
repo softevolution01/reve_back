@@ -3,10 +3,12 @@ package reve_back.infrastructure.persistence.repository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.application.ports.out.UserRepositoryPort;
+import reve_back.domain.model.Branch;
 import reve_back.domain.model.Role;
 import reve_back.domain.model.User;
 import reve_back.infrastructure.persistence.entity.ClientEntity;
 import reve_back.infrastructure.persistence.entity.UserEntity;
+import reve_back.infrastructure.persistence.jpa.BranchJpaRepository;
 import reve_back.infrastructure.persistence.jpa.RoleJpaRepository;
 import reve_back.infrastructure.persistence.jpa.UserJpaRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
@@ -22,6 +24,7 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
 
     private final UserJpaRepository userJpaRepository;
     private final RoleJpaRepository roleJpaRepository;
+    private final BranchJpaRepository branchJpaRepository;
     private final PersistenceMapper mapper;
 
     @Override
@@ -41,6 +44,14 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
         } else {
             userEntity.setRoles(new HashSet<>());
         }
+
+        if (user.branches() != null && !user.branches().isEmpty()) {
+            Set<String> branchNames = user.branches().stream().map(Branch::name).collect(Collectors.toSet());
+            userEntity.setBranches(branchJpaRepository.findAllByNameIn(branchNames));
+        } else {
+            userEntity.setBranches(new HashSet<>());
+        }
+
         if (user.clientId() != null) {
             ClientEntity client = new ClientEntity();
             client.setId(user.clientId());

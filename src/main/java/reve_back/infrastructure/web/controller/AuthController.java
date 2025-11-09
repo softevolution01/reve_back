@@ -26,7 +26,8 @@ public class AuthController {
                 dto.email(),
                 dto.phone(),
                 dto.password(),
-                dto.roleName()
+                dto.roleName(),
+                dto.branchNames()
         );
         return ResponseEntity.ok(registerUseCase.register(command));
     }
