@@ -13,6 +13,8 @@ public interface SpringDataProductRepository extends JpaRepository<ProductEntity
     Page<ProductEntity> findAll(Pageable pageable);
     boolean existsByBrandAndLine(String brand, String lines);
     boolean existsByBrandAndLineAndIdNot(String brand, String lines,Long id);
+    @Query("SELECT p FROM ProductEntity p WHERE p.is_active = true")
+    Page<ProductEntity> findByIsActiveTrue(Pageable pageable);
 
     @Query("SELECT COUNT(p) FROM ProductEntity p WHERE p.is_active = true")
     long countByIsActiveTrue();

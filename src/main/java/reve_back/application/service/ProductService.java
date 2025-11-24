@@ -192,9 +192,16 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Transactional
     public ProductDetailsResponse updateProduct(Long id, ProductUpdateRequest request) {
         ProductEntity productEntity = productRepositoryPort.findById(id);
-        // verifica que el producto este activo
         if (!productEntity.is_active()) {
             throw new RuntimeException("No se puede actualizar: el producto está inactivo o eliminado.");
+        }
+
+        List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
+        boolean allAgotadas = bottles.stream()
+                .allMatch(b -> "agotada".equalsIgnoreCase(b.status()));
+
+        if (!allAgotadas) {
+            throw new RuntimeException("No se puede editar el producto: tiene botellas activas o en otro estado.");
         }
 
         if (!productEntity.getBrand().equals(request.brand()) || !productEntity.getLine().equals(request.line())) {
@@ -210,8 +217,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         productEntity.setPrice(request.price());
         ProductEntity updatedProduct = productRepositoryPort.update(productEntity);
 
-        // Manejar botellas
-        List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         List<BottleCreationResponse> bottleResponses = bottles.stream()
                 .map(b -> new BottleCreationResponse(
                         b.id(),
@@ -236,6 +241,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 bottleResponses
         );
     }
+
 
     @Override
     public void deleteProduct(Long id) {
