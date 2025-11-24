@@ -252,11 +252,13 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         }
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         if (!bottles.isEmpty()) {
-            boolean allExhausted = bottles.stream().allMatch(b-> b.volumeMl() == 0 && b.remainingVolumeMl() == 0);
-            if (!allExhausted) {
-                throw new RuntimeException("No se puede eliminar: el producto tiene botellas asociadas no agotadas (volumen ml y volumen restante ml deben ser 0).");
+            boolean allAgotadas = bottles.stream()
+                    .allMatch(b -> "agotada".equalsIgnoreCase(b.status()));
+            if (!allAgotadas) {
+                throw new RuntimeException("No se puede eliminar: el producto tiene botellas no agotadas.");
             }
         }
+
         productEntity.set_active(false);
         productRepositoryPort.update(productEntity);
     }
