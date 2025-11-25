@@ -17,8 +17,8 @@ import reve_back.infrastructure.web.dto.*;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -101,12 +101,17 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 .map(b -> new BottleCreationResponse(
                         b.id(),
                         b.barcode(),
-                        b.branchId(),
+                        branchRepositoryPort.findAll().stream()
+                                .filter(branch -> Objects.equals(branch.id(), b.branchId()))
+                                .map(branch -> branch.name())
+                                .findFirst()
+                                .orElse("Sede no encontrada"),
                         b.volumeMl(),
                         b.remainingVolumeMl(),
                         b.quantity(),
                         b.status(),
-                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())))
+                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
+                ))
                 .collect(Collectors.toList());
 
         return new ProductCreationResponse(
@@ -139,7 +144,11 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             .map(b -> new BottleCreationResponse(
                                     b.id(),
                                     b.barcode(),
-                                    b.branchId(),
+                                    branchRepositoryPort.findAll().stream()
+                                            .filter(branch -> Objects.equals(branch.id(), b.branchId()))
+                                            .map(branch -> branch.name())
+                                            .findFirst()
+                                            .orElse("Sede no encontrada"),
                                     b.volumeMl(),
                                     b.remainingVolumeMl(),
                                     b.quantity(),
@@ -177,7 +186,11 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         }
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
         List<BottleCreationResponse> bottleResponses = bottles.stream()
-                .map(b -> new BottleCreationResponse(b.id(), b.barcode(), b.branchId(), b.volumeMl(),
+                .map(b -> new BottleCreationResponse(b.id(), b.barcode(), branchRepositoryPort.findAll().stream()
+                        .filter(branch -> Objects.equals(branch.id(), b.branchId()))
+                        .map(branch -> branch.name())
+                        .findFirst()
+                        .orElse("Sede no encontrada"), b.volumeMl(),
                         b.remainingVolumeMl(),
                         b.quantity(),
                         b.status(),
@@ -221,7 +234,11 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 .map(b -> new BottleCreationResponse(
                         b.id(),
                         b.barcode(),
-                        b.branchId(),
+                        branchRepositoryPort.findAll().stream()
+                                .filter(branch -> Objects.equals(branch.id(), b.branchId()))
+                                .map(branch -> branch.name())
+                                .findFirst()
+                                .orElse("Sede no encontrada"),
                         b.volumeMl(),
                         b.remainingVolumeMl(),
                         b.quantity(),
