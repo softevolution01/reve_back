@@ -10,6 +10,7 @@ public record ProductCreationResponse(
         String line,
         String concentration,
         Double price,
-        List<BottleCreationResponse> bottles
+        List<BottleCreationResponse> bottles,
+        List<DecantResponse> decants
 ) {
 }

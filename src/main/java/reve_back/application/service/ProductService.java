@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.*;
 import reve_back.application.ports.out.BottleRepositoryPort;
 import reve_back.application.ports.out.BranchRepositoryPort;
+import reve_back.application.ports.out.DecantPriceRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.model.*;
@@ -29,6 +30,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     private final ProductRepositoryPort productRepositoryPort;
     private final BottleRepositoryPort bottleRepositoryPort;
     private final BranchRepositoryPort branchRepositoryPort;
+    private final DecantPriceRepositoryPort decantPriceRepositoryPort;
 
     @Override
     @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
@@ -62,7 +64,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             null,
                             savedProduct.id(),
                             BottlesStatus.AGOTADA.getValue(),          // estado por defecto
-                            generateBarcode(12),               // barcode automático
+                            BarcodeGenerator.generateAlphanumeric(12), // barcode automático
                             0,                                       // volumeMl = 0
                             0,                                       // remainingVolumeMl = 0
                             0,
@@ -76,7 +78,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             null,
                             savedProduct.id(),
                             req.status(),
-                            generateBarcode(12),
+                            BarcodeGenerator.generateAlphanumeric(12),
                             req.volumeMl(),
                             req.remainingVolumeMl(),
                             req.quantity(),
@@ -114,24 +116,27 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 ))
                 .collect(Collectors.toList());
 
+        List<DecantResponse> decantResponses = List.of();
+        if (request.decants() != null && !request.decants().isEmpty()) {
+            List<DecantPrice> savedDecants = decantPriceRepositoryPort.saveAllForProduct(
+                    savedProduct.id(),
+                    request.decants()
+            );
+            decantResponses = savedDecants.stream()
+                    .map(d -> new DecantResponse(d.id(), d.volumeMl(), d.price(), d.barcode()))
+                    .toList();
+        }
+
         return new ProductCreationResponse(
                 savedProduct.id(),
                 savedProduct.brand(),
                 savedProduct.line(),
                 savedProduct.concentration(),
                 savedProduct.price(),
-                bottleResponse);
+                bottleResponse,
+                decantResponses
+        );
 
-    }
-
-    private String generateBarcode(int length) {
-        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        Random random = new SecureRandom();
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        return sb.toString();
     }
 
     @Override
