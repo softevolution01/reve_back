@@ -28,6 +28,9 @@ public class JwtTokenAdapter implements JwtTokenPort {
     @Value("${jwt.expiration.ms}")
     private long JWT_EXPIRATION_MS;
 
+    @Value("${jwt.refresh.expiration.ms}")
+    private long JWT_REFRESH_EXPIRATION_MS;
+
     @Override
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
@@ -72,6 +75,11 @@ public class JwtTokenAdapter implements JwtTokenPort {
     }
 
     @Override
+    public String generateRefreshToken(User user) {
+        return generateTokenLogic(user, JWT_REFRESH_EXPIRATION_MS, false);
+    }
+
+    @Override
     public String extractUsername(String token) {
         return extractClaims(token).getSubject();
     }
@@ -93,5 +101,39 @@ public class JwtTokenAdapter implements JwtTokenPort {
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private String generateTokenLogic(User user, long expiration, boolean includeClaims) {
+        Map<String, Object> claims = new HashMap<>();
+
+        if (includeClaims) {
+            List<String> permissions = user.roles().stream()
+                    .flatMap(role -> role.permissions().stream())
+                    .map(Permission::name)
+                    .distinct()
+                    .collect(Collectors.toList());
+            claims.put("permissions", permissions);
+
+            List<String> roleNames = user.roles().stream()
+                    .map(Role::name)
+                    .collect(Collectors.toList());
+            claims.put("roles", roleNames);
+
+            List<String> branchNames = user.branches().stream()
+                    .map(Branch::name)
+                    .collect(Collectors.toList());
+            claims.put("branches", branchNames);
+
+            claims.put("fullname", user.fullname());
+            claims.put("email", user.email());
+        }
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(user.username())
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
+                .compact();
     }
 }

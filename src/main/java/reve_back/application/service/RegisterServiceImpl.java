@@ -61,6 +61,7 @@ public class RegisterServiceImpl implements RegisterUseCase {
 
         User savedUser = userRepositoryPort.save(newUser);
         String token = jwtTokenPort.generateToken(savedUser);
-        return new AuthResponse(token);
+        String refreshToken = jwtTokenPort.generateRefreshToken(savedUser);
+        return new AuthResponse(token,  refreshToken);
     }
 }
