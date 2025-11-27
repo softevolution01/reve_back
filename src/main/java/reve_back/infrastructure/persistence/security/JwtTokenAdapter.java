@@ -47,10 +47,16 @@ public class JwtTokenAdapter implements JwtTokenPort {
                         .map(Role::name)
                                 .collect(Collectors.toList());
         claims.put("roles", roleNames);
-        List<String> branchNames = user.branches().stream()
-                .map(Branch::name)
-                .collect(Collectors.toList());
-        claims.put("branches", branchNames);
+        List<Map<String, Object>> branchObjects = user.branches().stream()
+                .map(branch -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", branch.id());
+                    map.put("name", branch.name());
+                    return map;
+                })
+                .toList();
+
+        claims.put("branches", branchObjects);
 
         claims.put("fullname", user.fullname());
         claims.put("email", user.email());
@@ -119,11 +125,16 @@ public class JwtTokenAdapter implements JwtTokenPort {
                     .collect(Collectors.toList());
             claims.put("roles", roleNames);
 
-            List<String> branchNames = user.branches().stream()
-                    .map(Branch::name)
-                    .collect(Collectors.toList());
-            claims.put("branches", branchNames);
+            List<Map<String, Object>> branchObjects = user.branches().stream()
+                    .map(branch -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", branch.id());
+                        map.put("name", branch.name());
+                        return map;
+                    })
+                    .toList();
 
+            claims.put("branches", branchObjects);
             claims.put("fullname", user.fullname());
             claims.put("email", user.email());
         }

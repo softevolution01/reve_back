@@ -44,7 +44,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 request.unitVolumeMl() != null ? request.unitVolumeMl() : 0
 
         )) {
-            throw new RuntimeException("El producto ya existe con esa marca y línea.");
+            throw new RuntimeException("El producto ya existe con esa marca, línea o volumen.");
         }
 
         // 2. Crear y guardar el producto
