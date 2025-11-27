@@ -12,6 +12,7 @@ import reve_back.application.ports.out.DecantPriceRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.model.*;
+import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
@@ -123,7 +124,12 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                     request.decants()
             );
             decantResponses = savedDecants.stream()
-                    .map(d -> new DecantResponse(d.id(), d.volumeMl(), d.price(), d.barcode()))
+                    .map(d -> new DecantResponse(
+                            d.id(),
+                            d.volumeMl(),
+                            d.price(),
+                            d.barcode(),
+                            BarcodeGenerator.generateBarcodeImageBase64(d.barcode())))
                     .toList();
         }
 
@@ -162,13 +168,25 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             ))
                             .collect(Collectors.toList());
 
+                    List<DecantPriceEntity> decants = productRepositoryPort.findAllByProductId(dto.id());
+                    List<DecantResponse> decantResponses = decants.stream()
+                            .map(d -> new DecantResponse(
+                                    d.getId(),
+                                    d.getVolumeMl(),
+                                    d.getPrice(),
+                                    d.getBarcode(),
+                                    BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())
+                            ))
+                            .toList();
+
                     return new ProductListResponse(
                             dto.id(),
                             dto.brand(),
                             dto.line(),
                             dto.concentration(),
                             dto.price(),
-                            bottleResponses
+                            bottleResponses,
+                            decantResponses
                     );
                 })
                 .collect(Collectors.toList());
@@ -201,9 +219,20 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         b.status(),
                         BarcodeGenerator.generateBarcodeImageBase64(b.barcode())))
                 .collect(Collectors.toList());
+
+        List<DecantPriceEntity> decants = productRepositoryPort.findAllByProductId(id);
+        List<DecantResponse> decantResponses = decants.stream()
+                .map(d -> new DecantResponse(
+                        d.getId(),
+                        d.getVolumeMl(),
+                        d.getPrice(),
+                        d.getBarcode(),
+                        BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())
+                ))
+                .toList();
         return new ProductDetailsResponse(productEntity.getId(), productEntity.getBrand(), productEntity.getLine(),
                 productEntity.getConcentration(), productEntity.getPrice(),
-                productEntity.getCreatedAt(), productEntity.getUpdatedAt(), bottleResponses);
+                productEntity.getCreatedAt(), productEntity.getUpdatedAt(), bottleResponses, decantResponses);
     }
 
     @Override
@@ -252,15 +281,28 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 ))
                 .collect(Collectors.toList());
 
+        List<DecantPriceEntity> decantEntities = decantPriceRepositoryPort.findAllByProductId(id);
+        List<DecantResponse> decantResponses = decantEntities.stream()
+                .map(e -> new DecantResponse(
+                        e.getId(),
+                        e.getVolumeMl(),
+                        e.getPrice(),
+                        e.getBarcode(),
+                        BarcodeGenerator.generateBarcodeImageBase64(e.getBarcode())
+                ))
+                .toList();
+
         return new ProductDetailsResponse(
                 updatedProduct.getId(),
                 updatedProduct.getBrand(),
                 updatedProduct.getLine(),
                 updatedProduct.getConcentration(),
                 updatedProduct.getPrice(),
+//                updatedProduct.getUnitVolumeMl(),
                 updatedProduct.getCreatedAt(),
                 updatedProduct.getUpdatedAt(),
-                bottleResponses
+                bottleResponses,
+                decantResponses
         );
     }
 

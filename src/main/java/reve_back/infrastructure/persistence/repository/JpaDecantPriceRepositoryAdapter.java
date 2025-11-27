@@ -6,6 +6,7 @@ import reve_back.application.ports.out.DecantPriceRepositoryPort;
 import reve_back.domain.model.DecantPrice;
 import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.persistence.jpa.SpringDataDecantPriceRepository;
+import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.DecantRequest;
 
 import java.security.SecureRandom;
@@ -30,7 +31,7 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
                     e.setProductId(productId);
                     e.setVolumeMl(d.volumeMl());
                     e.setPrice(d.price());
-                    e.setBarcode(generateBarcode(12));
+                    e.setBarcode(BarcodeGenerator.generateAlphanumeric(12));
                     return e;
                 })
                 .toList();
@@ -41,13 +42,9 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
                 .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
                 .toList();
     }
-    private String generateBarcode(int length) {
-        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-        Random random = new SecureRandom();
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        return sb.toString();
+
+    @Override
+    public List<DecantPriceEntity> findAllByProductId(Long productId) {
+        return repository.findByProductId(productId);
     }
 }

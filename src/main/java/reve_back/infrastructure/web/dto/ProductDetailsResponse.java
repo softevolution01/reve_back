@@ -11,6 +11,7 @@ public record ProductDetailsResponse(
         Double price,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<BottleCreationResponse> bottles
+        List<BottleCreationResponse> bottles,
+        List<DecantResponse> decants
 ) {
 }

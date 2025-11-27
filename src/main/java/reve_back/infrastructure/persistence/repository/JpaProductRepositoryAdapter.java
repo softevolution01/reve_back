@@ -6,9 +6,12 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.ProductRepositoryPort;
+import reve_back.domain.model.DecantPrice;
 import reve_back.domain.model.NewProduct;
 import reve_back.domain.model.Product;
+import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
+import reve_back.infrastructure.persistence.jpa.SpringDataDecantPriceRepository;
 import reve_back.infrastructure.persistence.jpa.SpringDataProductRepository;
 import reve_back.infrastructure.web.dto.ProductSummaryDTO;
 
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
 
     private final SpringDataProductRepository springDataProductRepository;
+    private final SpringDataDecantPriceRepository springDataDecantPriceRepository;
 
     @Override
     public Product save(NewProduct product) {
@@ -79,5 +83,10 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public boolean existsByBrandAndLineAndIdNot(String brand, String lines, Long id) {
         return springDataProductRepository.existsByBrandAndLineAndIdNot(brand, lines, id);
+    }
+
+    @Override
+    public List<DecantPriceEntity> findAllByProductId(Long productId) {
+        return springDataDecantPriceRepository.findByProductId(productId);
     }
 }
