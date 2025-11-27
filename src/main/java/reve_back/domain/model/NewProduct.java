@@ -4,6 +4,7 @@ public record NewProduct(
         String brand,
         String line,
         String concentration,
-        Double price
+        Double price,
+        Integer unitVolumeMl
 ) {
 }

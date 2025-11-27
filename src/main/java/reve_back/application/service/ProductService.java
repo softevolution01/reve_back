@@ -38,7 +38,12 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     public ProductCreationResponse createProduct(ProductCreationRequest request) {
 
         // 1. Verificar si el producto ya existe (brand + line)
-        if (productRepositoryPort.existsByBrandAndLine(request.brand(), request.line())) {
+        if (productRepositoryPort.existsByBrandLineAndVolumeProductsMl(
+                request.brand(),
+                request.line(),
+                request.unitVolumeMl() != null ? request.unitVolumeMl() : 0
+
+        )) {
             throw new RuntimeException("El producto ya existe con esa marca y línea.");
         }
 
@@ -47,7 +52,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 request.brand(),
                 request.line(),
                 request.concentration(),
-                request.price()
+                request.price(),
+                request.unitVolumeMl()
         );
         Product savedProduct = productRepositoryPort.save(newProduct);
 
@@ -252,7 +258,12 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         }
 
         if (!productEntity.getBrand().equals(request.brand()) || !productEntity.getLine().equals(request.line())) {
-            boolean exists = productRepositoryPort.existsByBrandAndLineAndIdNot(request.brand(), request.line(), id);
+            boolean exists = productRepositoryPort.existsByBrandLineAndVolumeProductsMlAndIdNot(
+                    request.brand(),
+                    request.line(),
+                    request.unitVolumeMl() != null ? request.unitVolumeMl() : 0,
+                    id
+            );
             if (exists) {
                 throw new DuplicateBarcodeException("Ya existe otro producto con esa marca y línea.");
             }

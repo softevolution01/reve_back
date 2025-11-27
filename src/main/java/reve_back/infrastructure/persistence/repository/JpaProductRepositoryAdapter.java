@@ -27,11 +27,20 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
 
     @Override
     public Product save(NewProduct product) {
-        ProductEntity entity = new ProductEntity(
-                        null, product.brand(), product.line(), product.concentration(),
-                        product.price(), true, null, null
-                );
+        ProductEntity entity = new ProductEntity();
+
+        entity.setBrand(product.brand());
+        entity.setLine(product.line());
+        entity.setConcentration(product.concentration());
+        entity.setPrice(product.price());
+        entity.set_active(true);
+        entity.setVolumeProductsMl(product.unitVolumeMl());
+        entity.setCreatedAt(java.time.LocalDateTime.now());
+        entity.setUpdatedAt(java.time.LocalDateTime.now());
+
         ProductEntity savedEntity = springDataProductRepository.save(entity);
+
+
         return new Product(
                 savedEntity.getId(),
                 savedEntity.getBrand(),
@@ -88,5 +97,15 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public List<DecantPriceEntity> findAllByProductId(Long productId) {
         return springDataDecantPriceRepository.findByProductId(productId);
+    }
+
+    @Override
+    public boolean existsByBrandLineAndVolumeProductsMl(String brand, String line, Integer unitVolumeMl) {
+        return springDataProductRepository.existsByBrandAndLineAndVolumeProductsMl(brand, line, unitVolumeMl);
+    }
+
+    @Override
+    public boolean existsByBrandLineAndVolumeProductsMlAndIdNot(String brand, String line, Integer unitVolumeMl, Long id) {
+        return springDataProductRepository.existsByBrandAndLineAndVolumeProductsMlAndIdNot(brand, line, unitVolumeMl, id);
     }
 }
