@@ -9,6 +9,7 @@ public record ProductDetailsResponse(
         String line,
         String concentration,
         Double price,
+        Integer volumeProductsMl,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         List<BottleCreationResponse> bottles,

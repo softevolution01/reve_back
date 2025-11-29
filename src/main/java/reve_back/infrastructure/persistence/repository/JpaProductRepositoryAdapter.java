@@ -60,7 +60,8 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
                         entity.getBrand(),
                         entity.getLine(),
                         entity.getConcentration(),
-                        entity.getPrice()))
+                        entity.getPrice(),
+                        entity.getVolumeProductsMl()))
                 .collect(Collectors.toList());
 
         return new PageImpl<>(items, PageRequest.of(page, size), productPage.getTotalElements());

@@ -191,6 +191,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             dto.line(),
                             dto.concentration(),
                             dto.price(),
+                            dto.volumeProductsMl(),
                             bottleResponses,
                             decantResponses
                     );
@@ -236,8 +237,13 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())
                 ))
                 .toList();
-        return new ProductDetailsResponse(productEntity.getId(), productEntity.getBrand(), productEntity.getLine(),
-                productEntity.getConcentration(), productEntity.getPrice(),
+        return new ProductDetailsResponse(
+                productEntity.getId(),
+                productEntity.getBrand(),
+                productEntity.getLine(),
+                productEntity.getConcentration(),
+                productEntity.getPrice(),
+                productEntity.getVolumeProductsMl(),
                 productEntity.getCreatedAt(), productEntity.getUpdatedAt(), bottleResponses, decantResponses);
     }
 
@@ -309,7 +315,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 updatedProduct.getLine(),
                 updatedProduct.getConcentration(),
                 updatedProduct.getPrice(),
-//                updatedProduct.getUnitVolumeMl(),
+                updatedProduct.getVolumeProductsMl(),
                 updatedProduct.getCreatedAt(),
                 updatedProduct.getUpdatedAt(),
                 bottleResponses,
