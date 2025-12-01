@@ -1,8 +1,10 @@
 package reve_back.application.service;
 
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.*;
@@ -12,15 +14,14 @@ import reve_back.application.ports.out.DecantPriceRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.model.*;
+import reve_back.infrastructure.persistence.entity.BranchEntity;
 import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
+import reve_back.infrastructure.persistence.jpa.UserJpaRepository;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
-import java.security.SecureRandom;
-import java.util.List;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -32,12 +33,12 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     private final BottleRepositoryPort bottleRepositoryPort;
     private final BranchRepositoryPort branchRepositoryPort;
     private final DecantPriceRepositoryPort decantPriceRepositoryPort;
+    private final UserJpaRepository userJpaRepository;
 
     @Override
     @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
     public ProductCreationResponse createProduct(ProductCreationRequest request) {
 
-        // 1. Verificar si el producto ya existe (brand + line)
         if (productRepositoryPort.existsByBrandLineAndVolumeProductsMl(
                 request.brand(),
                 request.line(),
@@ -47,7 +48,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             throw new RuntimeException("El producto ya existe con esa marca, línea o volumen.");
         }
 
-        // 2. Crear y guardar el producto
         NewProduct newProduct = new NewProduct(
                 request.brand(),
                 request.line(),
@@ -60,7 +60,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         List<Bottle> bottles;
 
         if (request.bottles() == null || request.bottles().isEmpty()) {
-            // CASO 1: SIN BOTELLAS → AUTOMÁTICAS
             List<Branch> branches = branchRepositoryPort.findAll();
             if (branches.isEmpty()) {
                 throw new RuntimeException("No hay sedes registradas en el sistema.");
@@ -153,26 +152,44 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
     @Override
     public ProductPageResponse findAll(int page, int size) {
+        String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        Set<Long> userBranchIds = userJpaRepository.findByUsername(username)
+                .map(user -> {
+                    Hibernate.initialize(user.getBranches()); // ESTA LÍNEA ES LA CLAVE
+                    return user.getBranches().stream()
+                            .map(BranchEntity::getId)
+                            .collect(Collectors.toSet());
+                })
+                .orElse(Set.of());
         Page<ProductSummaryDTO> productPage = productRepositoryPort.findAll(page, size);
+
         List<ProductListResponse> items = productPage.getContent().stream()
                 .map(dto -> {
-                    List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(dto.id());
-                    List<BottleCreationResponse> bottleResponses = bottles.stream()
+                    // Filtrar solo botellas que estén en las sedes del usuario
+                    List<Bottle> allowedBottles = bottleRepositoryPort.findAllByProductId(dto.id()).stream()
+                            .filter(bottle -> userBranchIds.contains(bottle.branchId()))
+                            .toList();
+                    if (allowedBottles.isEmpty()) {
+                        return null;
+                    }
+
+                    List<BottleCreationResponse> bottleResponses = allowedBottles.stream()
                             .map(b -> new BottleCreationResponse(
                                     b.id(),
                                     b.barcode(),
                                     branchRepositoryPort.findAll().stream()
                                             .filter(branch -> Objects.equals(branch.id(), b.branchId()))
-                                            .map(branch -> branch.name())
+                                            .map(Branch::name)
                                             .findFirst()
                                             .orElse("Sede no encontrada"),
                                     b.volumeMl(),
                                     b.remainingVolumeMl(),
                                     b.quantity(),
                                     b.status(),
-                                    BarcodeGenerator.generateBarcodeImageBase64(b.barcode()) // GENERADO AQUÍ
+                                    BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
                             ))
-                            .collect(Collectors.toList());
+                            .toList();
 
                     List<DecantPriceEntity> decants = productRepositoryPort.findAllByProductId(dto.id());
                     List<DecantResponse> decantResponses = decants.stream()
@@ -196,7 +213,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             decantResponses
                     );
                 })
-                .collect(Collectors.toList());
+                .filter(Objects::nonNull)
+                .toList();
 
         return new ProductPageResponse(
                 items,
@@ -210,41 +228,61 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Override
     @Transactional(readOnly = true)
     public ProductDetailsResponse getProductDetails(Long id) {
-        ProductEntity productEntity = productRepositoryPort.findById(id);
-        if (!productEntity.is_active()) {
-            throw new RuntimeException("Producto no encontrado o inactivo");
+        String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Set<Long> userBranchIds = userJpaRepository.findByUsername(username)
+                .map(user -> user.getBranches().stream()
+                        .map(BranchEntity::getId)
+                        .collect(Collectors.toSet()))
+                .orElseThrow(() -> new RuntimeException("Usuario sin sedes"));
+
+        ProductEntity product = productRepositoryPort.findById(id);
+        if (!product.is_active()) {
+            throw new RuntimeException("Producto inactivo o no encontrado");
         }
-        List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
-        List<BottleCreationResponse> bottleResponses = bottles.stream()
-                .map(b -> new BottleCreationResponse(b.id(), b.barcode(), branchRepositoryPort.findAll().stream()
-                        .filter(branch -> Objects.equals(branch.id(), b.branchId()))
-                        .map(branch -> branch.name())
-                        .findFirst()
-                        .orElse("Sede no encontrada"), b.volumeMl(),
+
+        List<Bottle> allowedBottles = bottleRepositoryPort.findAllByProductId(id).stream()
+                .filter(b -> userBranchIds.contains(b.branchId()))
+                .toList();
+
+        if (allowedBottles.isEmpty()) {
+            throw new RuntimeException("No tienes acceso a este producto en tus sedes");
+        }
+
+        List<BottleCreationResponse> bottleResponses = allowedBottles.stream()
+                .map(b -> new BottleCreationResponse(
+                        b.id(),
+                        b.barcode(),
+                        branchRepositoryPort.findAll().stream()
+                                .filter(branch -> Objects.equals(branch.id(), b.branchId()))
+                                .map(Branch::name)
+                                .findFirst()
+                                .orElse("Sede no encontrada"),
+                        b.volumeMl(),
                         b.remainingVolumeMl(),
                         b.quantity(),
                         b.status(),
-                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())))
-                .collect(Collectors.toList());
+                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
+                ))
+                .toList();
 
         List<DecantPriceEntity> decants = productRepositoryPort.findAllByProductId(id);
         List<DecantResponse> decantResponses = decants.stream()
-                .map(d -> new DecantResponse(
-                        d.getId(),
-                        d.getVolumeMl(),
-                        d.getPrice(),
-                        d.getBarcode(),
-                        BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())
-                ))
+                .map(d -> new DecantResponse(d.getId(), d.getVolumeMl(), d.getPrice(), d.getBarcode(),
+                        BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())))
                 .toList();
+
         return new ProductDetailsResponse(
-                productEntity.getId(),
-                productEntity.getBrand(),
-                productEntity.getLine(),
-                productEntity.getConcentration(),
-                productEntity.getPrice(),
-                productEntity.getVolumeProductsMl(),
-                productEntity.getCreatedAt(), productEntity.getUpdatedAt(), bottleResponses, decantResponses);
+                product.getId(),
+                product.getBrand(),
+                product.getLine(),
+                product.getConcentration(),
+                product.getPrice(),
+                product.getVolumeProductsMl(),
+                product.getCreatedAt(),
+                product.getUpdatedAt(),
+                bottleResponses,
+                decantResponses
+        );
     }
 
     @Override
