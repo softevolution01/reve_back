@@ -71,6 +71,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('inventory:edit')")
     public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody ProductUpdateRequest request) {
         try{
             ProductDetailsResponse response = updateProductUseCase.updateProduct(id, request);
@@ -85,6 +86,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('inventory:delete')")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try{
             deleteProductUseCase.deleteProduct(id);
