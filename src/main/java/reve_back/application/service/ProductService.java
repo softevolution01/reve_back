@@ -290,26 +290,21 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     public ProductDetailsResponse updateProduct(Long id, ProductUpdateRequest request) {
         ProductEntity productEntity = productRepositoryPort.findById(id);
         if (!productEntity.is_active()) {
-            throw new RuntimeException("No se puede actualizar: el producto está inactivo o eliminado.");
+            throw new RuntimeException("Producto inactivo o eliminado.");
         }
 
-        // 1. Validación: todas las botellas actuales deben estar agotadas
-        List<Bottle> currentBottles = bottleRepositoryPort.findAllByProductId(id);
-        boolean hasActiveBottles = currentBottles.stream()
-                .anyMatch(b -> !"agotada".equalsIgnoreCase(b.status()));
-        if (hasActiveBottles) {
-            throw new RuntimeException("No se puede editar el producto: tiene botellas con stock o en uso.");
+        List<Bottle> allBottles = bottleRepositoryPort.findAllByProductId(id);
+        if (allBottles.stream().anyMatch(b -> !"agotada".equalsIgnoreCase(b.status()))) {
+            throw new RuntimeException("No puedes editar: hay botellas selladas o con stock en alguna sede.");
         }
 
-        // 2. Validación de duplicidad marca + línea (igual que antes)
         if (!productEntity.getBrand().equals(request.brand()) ||
                 !productEntity.getLine().equals(request.line()) ||
                 !Objects.equals(productEntity.getVolumeProductsMl(), request.unitVolumeMl())) {
 
             boolean exists = productRepositoryPort.existsByBrandLineAndVolumeProductsMlAndIdNot(
                     request.brand(), request.line(),
-                    request.unitVolumeMl() != null ? request.unitVolumeMl() : 0,
-                    id
+                    request.unitVolumeMl() != null ? request.unitVolumeMl() : 0, id
             );
             if (exists) {
                 throw new RuntimeException("Ya existe otro producto con esa marca, línea y volumen.");
@@ -323,54 +318,56 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         productEntity.setVolumeProductsMl(request.unitVolumeMl());
         productRepositoryPort.update(productEntity);
 
-        Map<Long, Bottle> existingBottlesMap = currentBottles.stream()
+        Map<Long, Bottle> existingMap = allBottles.stream()
                 .collect(Collectors.toMap(Bottle::branchId, b -> b));
 
-        List<Bottle> bottlesToSave = new ArrayList<>();
+        List<Bottle> toSave = new ArrayList<>();
 
         for (BottleCreationRequest req : request.bottles()) {
-            Long branchId = req.branchId();
-            if (branchId == null) {
-                throw new RuntimeException("branchId es obligatorio en cada botella");
+            System.out.println("Request quantity: " + req.quantity());
+            if (req.branchId() == null) {
+                throw new RuntimeException("branchId es obligatorio");
             }
 
-            Bottle existing = existingBottlesMap.get(branchId);
+            Bottle existing = existingMap.get(req.branchId());
+
             if (existing != null) {
-                bottlesToSave.add(new Bottle(
+                toSave.add(new Bottle(
                         existing.id(),
                         id,
-                        req.status(),
+                        req.status() != null ? req.status() : existing.status(),
                         existing.barcode(),
-                        req.volumeMl(),
-                        req.remainingVolumeMl(),
-                        req.quantity(),
-                        branchId
+                        req.volumeMl() != null ? req.volumeMl() : existing.volumeMl(),
+                        req.remainingVolumeMl() != null ? req.remainingVolumeMl() : existing.remainingVolumeMl(),
+                        req.quantity() != null ? req.quantity() : existing.quantity(),
+                        req.branchId()
                 ));
             } else {
-                bottlesToSave.add(new Bottle(
+                toSave.add(new Bottle(
                         null,
                         id,
-                        req.status(),
+                        req.status() != null ? req.status() : "agotada",
                         BarcodeGenerator.generateAlphanumeric(12),
-                        req.volumeMl(),
-                        req.remainingVolumeMl(),
-                        req.quantity(),
-                        branchId
+                        req.volumeMl() != null ? req.volumeMl() : 100,
+                        req.remainingVolumeMl() != null ? req.remainingVolumeMl() : 100,
+                        req.quantity() != null ? req.quantity() : 1,
+                        req.branchId()
                 ));
             }
         }
 
-        List<Bottle> savedBottles = bottleRepositoryPort.updateAll(bottlesToSave);
+        bottleRepositoryPort.updateAll(toSave);
 
-        List<BottleCreationResponse> bottleResponses = savedBottles.stream()
+        List<Bottle> updatedBottles = bottleRepositoryPort.findAllByProductId(id);
+
+        List<BottleCreationResponse> bottleResp = updatedBottles.stream()
                 .map(b -> new BottleCreationResponse(
                         b.id(),
                         b.barcode(),
                         branchRepositoryPort.findAll().stream()
-                                .filter(br -> Objects.equals(br.id(), b.branchId()))
+                                .filter(br -> br.id().equals(b.branchId()))
                                 .map(Branch::name)
-                                .findFirst()
-                                .orElse("Sede desconocida"),
+                                .findFirst().orElse("Sede desconocida"),
                         b.volumeMl(),
                         b.remainingVolumeMl(),
                         b.quantity(),
@@ -379,8 +376,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 ))
                 .toList();
 
-        List<DecantPriceEntity> decants = decantPriceRepositoryPort.findAllByProductId(id);
-        List<DecantResponse> decantResponses = decants.stream()
+        List<DecantResponse> decants = decantPriceRepositoryPort.findAllByProductId(id).stream()
                 .map(d -> new DecantResponse(d.getId(), d.getVolumeMl(), d.getPrice(), d.getBarcode(),
                         BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())))
                 .toList();
@@ -394,8 +390,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 productEntity.getVolumeProductsMl(),
                 productEntity.getCreatedAt(),
                 productEntity.getUpdatedAt(),
-                bottleResponses,
-                decantResponses
+                bottleResp,
+                decants
         );
     }
 

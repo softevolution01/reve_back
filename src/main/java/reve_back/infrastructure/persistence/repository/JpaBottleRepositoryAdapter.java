@@ -6,6 +6,7 @@ import reve_back.application.ports.out.BottleRepositoryPort;
 import reve_back.domain.model.Bottle;
 import reve_back.infrastructure.persistence.entity.BottleEntity;
 import reve_back.infrastructure.persistence.jpa.SpringDataBottleRepository;
+import reve_back.infrastructure.util.BarcodeGenerator;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -65,32 +66,43 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
 
     @Override
     public List<Bottle> updateAll(List<Bottle> bottles) {
+        if (bottles == null || bottles.isEmpty()) {
+            return List.of();
+        }
         List<BottleEntity> entities = bottles.stream()
-                .map(bottle -> {
-                    BottleEntity entity = bottle.id() != null ?
-                            springDataBottleRepository.findById(bottle.id())
-                                    .orElseThrow(() -> new RuntimeException("Botella no encontrada")) :
-                            new BottleEntity();
-                    entity.setProductId(bottle.productId());
-                    entity.setStatus(bottle.status());
-                    entity.setBarcode(bottle.barcode());
-                    entity.setVolumeMl(bottle.volumeMl());
-                    entity.setRemainingVolumeMl(bottle.remainingVolumeMl());
-                    entity.setBranchId(bottle.branchId());
+                .map(b -> {
+                    BottleEntity entity = b.id() != null
+                            ? springDataBottleRepository.findById(b.id())
+                            .orElseThrow(() -> new RuntimeException("Botella no encontrada: " + b.id()))
+                            : new BottleEntity();
+
+                    entity.setProductId(b.productId());
+                    entity.setStatus(b.status() != null ? b.status() : "agotada");
+                    entity.setBarcode(b.barcode() != null ? b.barcode() : BarcodeGenerator.generateAlphanumeric(12));
+                    entity.setVolumeMl(b.volumeMl() != null ? b.volumeMl() : 100);
+                    entity.setRemainingVolumeMl(b.remainingVolumeMl() != null ? b.remainingVolumeMl() : 100);
+
+                    entity.setQuantity(b.quantity() != null && b.quantity() > 0 ? b.quantity() : 1);
+
+                    entity.setBranchId(b.branchId());
+
                     return entity;
                 })
-                .collect(Collectors.toList());
-        List<BottleEntity> savedEntities = springDataBottleRepository.saveAll(entities);
-        return savedEntities.stream()
-                .map(entity -> new Bottle(
-                        entity.getId(),
-                        entity.getProductId(),
-                        entity.getStatus(),
-                        entity.getBarcode(),
-                        entity.getVolumeMl(),
-                        entity.getRemainingVolumeMl(),
-                        entity.getQuantity(),
-                        entity.getBranchId()))
-                .collect(Collectors.toList());
+                .toList();
+
+        List<BottleEntity> saved = springDataBottleRepository.saveAllAndFlush(entities);
+
+        return saved.stream()
+                .map(e -> new Bottle(
+                        e.getId(),
+                        e.getProductId(),
+                        e.getStatus(),
+                        e.getBarcode(),
+                        e.getVolumeMl(),
+                        e.getRemainingVolumeMl(),
+                        e.getQuantity(),
+                        e.getBranchId()
+                ))
+                .toList();
     }
 }
