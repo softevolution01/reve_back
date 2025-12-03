@@ -25,7 +25,7 @@ public class ProductController {
     private final DeleteProductUseCase deleteProductUseCase;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('product:read:all')")
+    @PreAuthorize("hasAuthority('catalog:read:all')")
     public ResponseEntity<ProductPageResponse> getProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -35,7 +35,7 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('product:read:all')")
+    @PreAuthorize("hasAuthority('catalog:read:detail')")
     public ResponseEntity<?> getProductDetails(@PathVariable Long id) {
         try{
             ProductDetailsResponse response = getProductDetailsUseCase.getProductDetails(id);
@@ -51,7 +51,7 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('product:read:all')")
+    @PreAuthorize("hasAuthority('catalog:create')")
     public ResponseEntity<?> createProduct(@RequestBody ProductCreationRequest request) {
         try{
             ProductCreationResponse response = createProductUseCase.createProduct(request);
@@ -71,7 +71,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('inventory:edit')")
+    @PreAuthorize("hasAuthority('catalog:edit')")
     public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody ProductUpdateRequest request) {
         try{
             ProductDetailsResponse response = updateProductUseCase.updateProduct(id, request);
@@ -86,7 +86,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('inventory:delete')")
+    @PreAuthorize("hasAuthority('catalog:delete')")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try{
             deleteProductUseCase.deleteProduct(id);
