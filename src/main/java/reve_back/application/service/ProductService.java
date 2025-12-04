@@ -12,7 +12,6 @@ import reve_back.application.ports.out.BottleRepositoryPort;
 import reve_back.application.ports.out.BranchRepositoryPort;
 import reve_back.application.ports.out.DecantPriceRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
-import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.BranchEntity;
 import reve_back.infrastructure.persistence.entity.DecantPriceEntity;

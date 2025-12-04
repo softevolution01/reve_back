@@ -1,7 +1,6 @@
 package reve_back.infrastructure.web.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,7 +10,6 @@ import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.exception.DuplicateProductNameException;
 import reve_back.infrastructure.web.dto.*;
 
-import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
