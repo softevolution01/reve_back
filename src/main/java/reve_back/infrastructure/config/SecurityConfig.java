@@ -1,7 +1,6 @@
 package reve_back.infrastructure.config;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -37,7 +36,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
-    private final EcommerceProperties properties;
+    private final ReveProperties properties;
 
     private static final String[] WHITE_LIST_URLS = {
             "/auth/**",     // Todos los endpoints de /auth (login, register)
@@ -87,7 +86,7 @@ public class SecurityConfig {
         // Usar el valor inyectado
         // Si tu allowedOrigins puede tener múltiples URLs separadas por coma,
         // debes usar split() para convertirlo en List<String>.
-        configuration.setAllowedOrigins(Arrays.asList(properties.getAllowedOrigins().split(",")));
+        configuration.setAllowedOrigins(Arrays.asList(properties.cors().allowedOrigins().split(",")));
 
         // Configuración de métodos, headers y credenciales (mismas que en WebConfig)
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

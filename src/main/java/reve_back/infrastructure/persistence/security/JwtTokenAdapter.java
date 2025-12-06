@@ -10,7 +10,7 @@ import reve_back.application.ports.out.JwtTokenPort;
 import reve_back.domain.model.Permission;
 import reve_back.domain.model.Role;
 import reve_back.domain.model.User;
-import reve_back.infrastructure.config.EcommerceProperties;
+import reve_back.infrastructure.config.ReveProperties;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Component
 public class JwtTokenAdapter implements JwtTokenPort {
 
-    private final EcommerceProperties properties;
+    private final ReveProperties properties;
 
     @Override
     public String generateToken(User user) {
@@ -59,7 +59,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
                 .claims(claims)
                 .subject(user.username())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + properties.getJWT_EXPIRATION_MS()))
+                .expiration(new Date(System.currentTimeMillis() + properties.jwt().expirationMs()))
                 .signWith(getSigningKey()) // SignatureAlgorithm.HS256
                 .compact();
     }
@@ -76,7 +76,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
 
     @Override
     public String generateRefreshToken(User user) {
-        return generateTokenLogic(user, properties.getJWT_REFRESH_EXPIRATION_MS(), false);
+        return generateTokenLogic(user, properties.jwt().refreshExpirationMs(), false);
     }
 
     @Override
@@ -99,7 +99,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
     }
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(properties.getSECRET_KEY());
+        byte[] keyBytes = Decoders.BASE64.decode(properties.jwt().secretKey());
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
