@@ -4,13 +4,13 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.application.ports.out.JwtTokenPort;
-import reve_back.domain.model.Branch;
 import reve_back.domain.model.Permission;
 import reve_back.domain.model.Role;
 import reve_back.domain.model.User;
+import reve_back.infrastructure.config.EcommerceProperties;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -19,17 +19,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Component
 public class JwtTokenAdapter implements JwtTokenPort {
 
-    @Value("${jwt.secret.key}")
-    private String SECRET_KEY;
-
-    @Value("${jwt.expiration.ms}")
-    private long JWT_EXPIRATION_MS;
-
-    @Value("${jwt.refresh.expiration.ms}")
-    private long JWT_REFRESH_EXPIRATION_MS;
+    private final EcommerceProperties properties;
 
     @Override
     public String generateToken(User user) {
@@ -65,7 +59,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
                 .claims(claims)
                 .subject(user.username())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION_MS))
+                .expiration(new Date(System.currentTimeMillis() + properties.getJWT_EXPIRATION_MS()))
                 .signWith(getSigningKey()) // SignatureAlgorithm.HS256
                 .compact();
     }
@@ -82,7 +76,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
 
     @Override
     public String generateRefreshToken(User user) {
-        return generateTokenLogic(user, JWT_REFRESH_EXPIRATION_MS, false);
+        return generateTokenLogic(user, properties.getJWT_REFRESH_EXPIRATION_MS(), false);
     }
 
     @Override
@@ -105,7 +99,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
     }
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] keyBytes = Decoders.BASE64.decode(properties.getSECRET_KEY());
         return Keys.hmacShaKeyFor(keyBytes);
     }
 

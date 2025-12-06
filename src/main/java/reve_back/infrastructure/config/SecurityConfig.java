@@ -32,11 +32,12 @@ import java.util.Arrays;
 @Configuration
 public class SecurityConfig {
 
-    @Value("${api.cors.allowed-origins}")
-    private String allowedOrigins;
+//    @Value("${api.cors.allowed-origins}")
+//    private String allowedOrigins;
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final EcommerceProperties properties;
 
     private static final String[] WHITE_LIST_URLS = {
             "/auth/**",     // Todos los endpoints de /auth (login, register)
@@ -86,7 +87,7 @@ public class SecurityConfig {
         // Usar el valor inyectado
         // Si tu allowedOrigins puede tener múltiples URLs separadas por coma,
         // debes usar split() para convertirlo en List<String>.
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        configuration.setAllowedOrigins(Arrays.asList(properties.getAllowedOrigins().split(",")));
 
         // Configuración de métodos, headers y credenciales (mismas que en WebConfig)
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
