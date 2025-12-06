@@ -1,22 +1,16 @@
 package reve_back.application.service;
 
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Hibernate;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.*;
-import reve_back.application.ports.out.BottleRepositoryPort;
-import reve_back.application.ports.out.BranchRepositoryPort;
-import reve_back.application.ports.out.DecantPriceRepositoryPort;
-import reve_back.application.ports.out.ProductRepositoryPort;
+import reve_back.application.ports.out.*;
 import reve_back.domain.model.*;
-import reve_back.infrastructure.persistence.entity.BranchEntity;
-import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
+import reve_back.infrastructure.mapper.ProductDtoMapper;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
-import reve_back.infrastructure.persistence.jpa.UserJpaRepository;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
@@ -32,7 +26,9 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     private final BottleRepositoryPort bottleRepositoryPort;
     private final BranchRepositoryPort branchRepositoryPort;
     private final DecantPriceRepositoryPort decantPriceRepositoryPort;
-    private final UserJpaRepository userJpaRepository;
+    private final UserRepositoryPort userRepositoryPort;
+    private final ProductDtoMapper mapper;
+//    private final UserJpaRepository userJpaRepository;
 
     @Override
     @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
@@ -151,66 +147,35 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
     @Override
     public ProductPageResponse findAll(int page, int size) {
-        String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        Set<Long> userBranchIds = userJpaRepository.findByUsername(username)
-                .map(user -> {
-                    Hibernate.initialize(user.getBranches()); // ESTA LÍNEA ES LA CLAVE
-                    return user.getBranches().stream()
-                            .map(BranchEntity::getId)
-                            .collect(Collectors.toSet());
-                })
-                .orElse(Set.of());
+        Set<Long> userBranchIds = getAuthorizedBranchIds();
         Page<ProductSummaryDTO> productPage = productRepositoryPort.findAll(page, size);
-
         List<ProductListResponse> items = productPage.getContent().stream()
-                .map(dto -> {
-                    // Filtrar solo botellas que estén en las sedes del usuario
-                    List<Bottle> allowedBottles = bottleRepositoryPort.findAllByProductId(dto.id()).stream()
-                            .filter(bottle -> userBranchIds.contains(bottle.branchId()))
+                .map(summary -> {
+                    // 1. Obtener datos
+                    List<Bottle> allBottles = bottleRepositoryPort.findAllByProductId(summary.id());
+                    List<DecantPrice> allDecants = decantPriceRepositoryPort.findAllByProductId(summary.id())
+                            .stream()
+                            .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
                             .toList();
-                    if (allowedBottles.isEmpty()) {
+
+                    // 2. Filtrar botellas por sede del usuario
+                    List<BottleCreationResponse> validBottles = allBottles.stream()
+                            .filter(b -> userBranchIds.contains(b.branchId()))
+                            .map(mapper::toBottleResponse)
+                            .toList();
+
+                    // Si no tiene botellas en sus sedes, no mostramos el producto
+                    if (validBottles.isEmpty()) {
                         return null;
                     }
 
-                    List<BottleCreationResponse> bottleResponses = allowedBottles.stream()
-                            .map(b -> new BottleCreationResponse(
-                                    b.id(),
-                                    b.barcode(),
-                                    branchRepositoryPort.findAll().stream()
-                                            .filter(branch -> Objects.equals(branch.id(), b.branchId()))
-                                            .map(Branch::name)
-                                            .findFirst()
-                                            .orElse("Sede no encontrada"),
-                                    b.volumeMl(),
-                                    b.remainingVolumeMl(),
-                                    b.quantity(),
-                                    b.status(),
-                                    BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
-                            ))
+                    // 3. Mapear decants
+                    List<DecantResponse> validDecants = allDecants.stream()
+                            .map(mapper::toDecantResponse)
                             .toList();
 
-                    List<DecantPriceEntity> decants = productRepositoryPort.findAllByProductId(dto.id());
-                    List<DecantResponse> decantResponses = decants.stream()
-                            .map(d -> new DecantResponse(
-                                    d.getId(),
-                                    d.getVolumeMl(),
-                                    d.getPrice(),
-                                    d.getBarcode(),
-                                    BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())
-                            ))
-                            .toList();
-
-                    return new ProductListResponse(
-                            dto.id(),
-                            dto.brand(),
-                            dto.line(),
-                            dto.concentration(),
-                            dto.price(),
-                            dto.volumeProductsMl(),
-                            bottleResponses,
-                            decantResponses
-                    );
+                    // 4. Retornar respuesta final
+                    return mapper.toProductListResponse(summary, validBottles, validDecants);
                 })
                 .filter(Objects::nonNull)
                 .toList();
@@ -227,47 +192,23 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Override
     @Transactional(readOnly = true)
     public ProductDetailsResponse getProductDetails(Long id) {
-        String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Set<Long> userBranchIds = userJpaRepository.findByUsername(username)
-                .map(user -> user.getBranches().stream()
-                        .map(BranchEntity::getId)
-                        .collect(Collectors.toSet()))
-                .orElseThrow(() -> new RuntimeException("Usuario sin sedes"));
+        Set<Long> userBranchIds = getAuthorizedBranchIds();
 
         ProductEntity product = productRepositoryPort.findById(id);
-        if (!product.is_active()) {
-            throw new RuntimeException("Producto inactivo o no encontrado");
-        }
+        if (!product.is_active()) throw new RuntimeException("Producto inactivo");
 
-        List<Bottle> allowedBottles = bottleRepositoryPort.findAllByProductId(id).stream()
+        // Usamos el mapper
+        List<BottleCreationResponse> bottleResponses = bottleRepositoryPort.findAllByProductId(id).stream()
                 .filter(b -> userBranchIds.contains(b.branchId()))
+                .map(mapper::toBottleResponse)
                 .toList();
 
-        if (allowedBottles.isEmpty()) {
-            throw new RuntimeException("No tienes acceso a este producto en tus sedes");
-        }
+        if (bottleResponses.isEmpty()) throw new RuntimeException("No tienes acceso");
 
-        List<BottleCreationResponse> bottleResponses = allowedBottles.stream()
-                .map(b -> new BottleCreationResponse(
-                        b.id(),
-                        b.barcode(),
-                        branchRepositoryPort.findAll().stream()
-                                .filter(branch -> Objects.equals(branch.id(), b.branchId()))
-                                .map(Branch::name)
-                                .findFirst()
-                                .orElse("Sede no encontrada"),
-                        b.volumeMl(),
-                        b.remainingVolumeMl(),
-                        b.quantity(),
-                        b.status(),
-                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
-                ))
-                .toList();
-
-        List<DecantPriceEntity> decants = productRepositoryPort.findAllByProductId(id);
-        List<DecantResponse> decantResponses = decants.stream()
-                .map(d -> new DecantResponse(d.getId(), d.getVolumeMl(), d.getPrice(), d.getBarcode(),
-                        BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())))
+        // Usamos el mapper
+        List<DecantResponse> decantResponses = decantPriceRepositoryPort.findAllByProductId(id).stream()
+                .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode())) // A dominio
+                .map(mapper::toDecantResponse)
                 .toList();
 
         return new ProductDetailsResponse(
@@ -412,5 +353,14 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         productEntity.set_active(false);
         productRepositoryPort.update(productEntity);
+    }
+
+    private Set<Long> getAuthorizedBranchIds() {
+        String username = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userRepositoryPort.findByUsername(username)
+                .map(user -> user.branches().stream()
+                        .map(Branch::id)
+                        .collect(Collectors.toSet()))
+                .orElse(Set.of());
     }
 }

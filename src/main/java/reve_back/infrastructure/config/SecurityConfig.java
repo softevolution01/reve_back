@@ -31,9 +31,6 @@ import java.util.Arrays;
 @Configuration
 public class SecurityConfig {
 
-//    @Value("${api.cors.allowed-origins}")
-//    private String allowedOrigins;
-
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
     private final ReveProperties properties;

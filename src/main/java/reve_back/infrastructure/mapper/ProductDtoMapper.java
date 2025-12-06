@@ -1,0 +1,62 @@
+package reve_back.infrastructure.mapper;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import reve_back.application.ports.out.BranchRepositoryPort;
+import reve_back.domain.model.Bottle;
+import reve_back.domain.model.Branch;
+import reve_back.domain.model.DecantPrice;
+import reve_back.infrastructure.util.BarcodeGenerator;
+import reve_back.infrastructure.web.dto.*;
+
+import java.util.List;
+import java.util.Objects;
+
+@RequiredArgsConstructor
+@Component
+public class ProductDtoMapper {
+
+    private final BranchRepositoryPort branchRepositoryPort;
+
+    public BottleCreationResponse toBottleResponse(Bottle b) {
+        String branchName = branchRepositoryPort.findAll().stream()
+                .filter(branch -> Objects.equals(branch.id(), b.branchId()))
+                .map(Branch::name)
+                .findFirst()
+                .orElse("Sede no encontrada");
+
+        return new BottleCreationResponse(
+                b.id(),
+                b.barcode(),
+                branchName,
+                b.volumeMl(),
+                b.remainingVolumeMl(),
+                b.quantity(),
+                b.status(),
+                BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
+        );
+    }
+
+    public DecantResponse toDecantResponse(DecantPrice d) {
+        return new DecantResponse(
+                d.id(),
+                d.volumeMl(),
+                d.price(),
+                d.barcode(),
+                BarcodeGenerator.generateBarcodeImageBase64(d.barcode())
+        );
+    }
+
+    public ProductListResponse toProductListResponse(ProductSummaryDTO dto, List<BottleCreationResponse> bottles, List<DecantResponse> decants) {
+        return new ProductListResponse(
+                dto.id(),
+                dto.brand(),
+                dto.line(),
+                dto.concentration(),
+                dto.price(),
+                dto.volumeProductsMl(),
+                bottles,
+                decants
+        );
+    }
+}
