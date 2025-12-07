@@ -6,9 +6,24 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.oned.Code128Writer;
 
 import java.io.ByteArrayOutputStream;
+import java.security.SecureRandom;
 import java.util.Base64;
 
 public class BarcodeGenerator {
+
+    private static final String ALPHANUMERIC_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final SecureRandom random = new SecureRandom();
+
+    private BarcodeGenerator() {
+    }
+
+    public static String generateAlphanumeric(int length) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(ALPHANUMERIC_CHARS.charAt(random.nextInt(ALPHANUMERIC_CHARS.length())));
+        }
+        return sb.toString();
+    }
 
     public static String generateBarcodeImageBase64(String barcodeText) {
         try {
@@ -23,5 +38,9 @@ public class BarcodeGenerator {
         }catch (Exception e){
             throw  new RuntimeException("Error generando código de barras: " + e.getMessage());
         }
+    }
+    public static String generateFullBarcode(int length) {
+        String text = generateAlphanumeric(length);
+        return generateBarcodeImageBase64(text);
     }
 }

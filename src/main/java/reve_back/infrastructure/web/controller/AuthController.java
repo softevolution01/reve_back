@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.*;
 import reve_back.infrastructure.web.dto.LoginRequest;
+import reve_back.infrastructure.web.dto.RefreshTokenRequest;
 import reve_back.infrastructure.web.dto.RegisterRequest;
 
 @RequiredArgsConstructor
@@ -16,6 +17,7 @@ public class AuthController {
 
     private final RegisterUseCase registerUseCase;
     private final LoginUseCase loginUseCase;
+    private final RefreshTokenUseCase refreshTokenUseCase;
 
     @PostMapping("/register")
 //    @PreAuthorize("hasAuthority('menu:sales:access')")
@@ -36,5 +38,10 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest dto){
         LoginCommand command = new LoginCommand(dto.username(), dto.password());
         return ResponseEntity.ok(loginUseCase.login(command));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest dto) {
+        return ResponseEntity.ok(refreshTokenUseCase.refreshToken(dto));
     }
 }

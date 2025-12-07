@@ -30,6 +30,9 @@ public class ProductEntity {
     @Column(nullable = false)
     private Double price;
 
+    @Column(name = "volume_products_ml", nullable = false)
+    private Integer volumeProductsMl;
+
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean is_active;
 

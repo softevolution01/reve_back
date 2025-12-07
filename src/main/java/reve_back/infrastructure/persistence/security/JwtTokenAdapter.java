@@ -4,13 +4,13 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.application.ports.out.JwtTokenPort;
-import reve_back.domain.model.Branch;
 import reve_back.domain.model.Permission;
 import reve_back.domain.model.Role;
 import reve_back.domain.model.User;
+import reve_back.infrastructure.config.ReveProperties;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -19,14 +19,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Component
 public class JwtTokenAdapter implements JwtTokenPort {
 
-    @Value("${jwt.secret.key}")
-    private String SECRET_KEY;
-
-    @Value("${jwt.expiration.ms}")
-    private long JWT_EXPIRATION_MS;
+    private final ReveProperties properties;
 
     @Override
     public String generateToken(User user) {
@@ -44,10 +41,16 @@ public class JwtTokenAdapter implements JwtTokenPort {
                         .map(Role::name)
                                 .collect(Collectors.toList());
         claims.put("roles", roleNames);
-        List<String> branchNames = user.branches().stream()
-                .map(Branch::name)
-                .collect(Collectors.toList());
-        claims.put("branches", branchNames);
+        List<Map<String, Object>> branchObjects = user.branches().stream()
+                .map(branch -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", branch.id());
+                    map.put("name", branch.name());
+                    return map;
+                })
+                .toList();
+
+        claims.put("branches", branchObjects);
 
         claims.put("fullname", user.fullname());
         claims.put("email", user.email());
@@ -56,7 +59,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
                 .claims(claims)
                 .subject(user.username())
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION_MS))
+                .expiration(new Date(System.currentTimeMillis() + properties.jwt().expirationMs()))
                 .signWith(getSigningKey()) // SignatureAlgorithm.HS256
                 .compact();
     }
@@ -69,6 +72,11 @@ public class JwtTokenAdapter implements JwtTokenPort {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    @Override
+    public String generateRefreshToken(User user) {
+        return generateTokenLogic(user, properties.jwt().refreshExpirationMs(), false);
     }
 
     @Override
@@ -91,7 +99,46 @@ public class JwtTokenAdapter implements JwtTokenPort {
     }
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] keyBytes = Decoders.BASE64.decode(properties.jwt().secretKey());
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private String generateTokenLogic(User user, long expiration, boolean includeClaims) {
+        Map<String, Object> claims = new HashMap<>();
+
+        if (includeClaims) {
+            List<String> permissions = user.roles().stream()
+                    .flatMap(role -> role.permissions().stream())
+                    .map(Permission::name)
+                    .distinct()
+                    .collect(Collectors.toList());
+            claims.put("permissions", permissions);
+
+            List<String> roleNames = user.roles().stream()
+                    .map(Role::name)
+                    .collect(Collectors.toList());
+            claims.put("roles", roleNames);
+
+            List<Map<String, Object>> branchObjects = user.branches().stream()
+                    .map(branch -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", branch.id());
+                        map.put("name", branch.name());
+                        return map;
+                    })
+                    .toList();
+
+            claims.put("branches", branchObjects);
+            claims.put("fullname", user.fullname());
+            claims.put("email", user.email());
+        }
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(user.username())
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
+                .compact();
     }
 }

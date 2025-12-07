@@ -8,6 +8,8 @@ public record ProductListResponse(
         String line,
         String concentration,
         Double price,
-        List<BottleCreationResponse> bottles
+        Integer volumeProductsMl,
+        List<BottleCreationResponse> bottles,
+        List<DecantResponse> decants
 ) {
 }

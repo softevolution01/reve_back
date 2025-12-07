@@ -1,7 +1,6 @@
 package reve_back.infrastructure.web.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,7 +10,6 @@ import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.exception.DuplicateProductNameException;
 import reve_back.infrastructure.web.dto.*;
 
-import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
@@ -25,7 +23,7 @@ public class ProductController {
     private final DeleteProductUseCase deleteProductUseCase;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('product:read:all')")
+    @PreAuthorize("hasAuthority('catalog:read:all')")
     public ResponseEntity<ProductPageResponse> getProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -35,7 +33,7 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('product:read:all')")
+    @PreAuthorize("hasAuthority('catalog:read:detail')")
     public ResponseEntity<?> getProductDetails(@PathVariable Long id) {
         try{
             ProductDetailsResponse response = getProductDetailsUseCase.getProductDetails(id);
@@ -51,7 +49,7 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('product:read:all')")
+    @PreAuthorize("hasAuthority('catalog:create')")
     public ResponseEntity<?> createProduct(@RequestBody ProductCreationRequest request) {
         try{
             ProductCreationResponse response = createProductUseCase.createProduct(request);
@@ -71,6 +69,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('catalog:edit')")
     public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody ProductUpdateRequest request) {
         try{
             ProductDetailsResponse response = updateProductUseCase.updateProduct(id, request);
@@ -85,6 +84,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('catalog:delete')")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try{
             deleteProductUseCase.deleteProduct(id);

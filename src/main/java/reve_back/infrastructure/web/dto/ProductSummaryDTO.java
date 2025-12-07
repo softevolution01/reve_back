@@ -5,6 +5,7 @@ public record ProductSummaryDTO(
         String brand,
         String line,
         String concentration,
-        Double price
+        Double price,
+        Integer volumeProductsMl
 ) {
 }

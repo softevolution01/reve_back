@@ -32,6 +32,7 @@ public class LoginServiceImpl implements LoginUseCase {
                 .orElseThrow(()-> new RuntimeException("Usuario autenticado no encontrado en BBDD."));
 
         String token = jwtTokenPort.generateToken(user);
-        return new AuthResponse(token);
+        String refreshToken = jwtTokenPort.generateRefreshToken(user);
+        return new AuthResponse(token, refreshToken);
     }
 }
