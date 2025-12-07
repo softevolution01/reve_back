@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.application.ports.out.BranchRepositoryPort;
 import reve_back.domain.model.*;
+import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
@@ -90,6 +91,21 @@ public class ProductDtoMapper {
                 req.remainingVolumeMl(),
                 req.quantity(),
                 req.branchId()
+        );
+    }
+
+    public ProductDetailsResponse toProductDetailsResponse(ProductEntity p, List<BottleCreationResponse> bottles, List<DecantResponse> decants) {
+        return new ProductDetailsResponse(
+                p.getId(),
+                p.getBrand(),
+                p.getLine(),
+                p.getConcentration(),
+                p.getPrice(),
+                p.getVolumeProductsMl(),
+                p.getCreatedAt(),
+                p.getUpdatedAt(),
+                bottles,
+                decants
         );
     }
 }

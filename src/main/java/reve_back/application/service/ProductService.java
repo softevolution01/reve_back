@@ -185,6 +185,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Override
     @Transactional
     public ProductDetailsResponse updateProduct(Long id, ProductUpdateRequest request) {
+        // 1. Validaciones iniciales
         ProductEntity productEntity = productRepositoryPort.findById(id);
         if (!productEntity.is_active()) {
             throw new RuntimeException("Producto inactivo o eliminado.");
@@ -195,6 +196,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             throw new RuntimeException("No puedes editar: hay botellas selladas o con stock en alguna sede.");
         }
 
+        // 2. Validación de duplicados
         if (!productEntity.getBrand().equals(request.brand()) ||
                 !productEntity.getLine().equals(request.line()) ||
                 !Objects.equals(productEntity.getVolumeProductsMl(), request.unitVolumeMl())) {
@@ -208,6 +210,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             }
         }
 
+        // 3. Actualizar entidad Producto
         productEntity.setBrand(request.brand());
         productEntity.setLine(request.line());
         productEntity.setConcentration(request.concentration());
@@ -215,13 +218,13 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         productEntity.setVolumeProductsMl(request.unitVolumeMl());
         productRepositoryPort.update(productEntity);
 
+        // 4. Lógica de mezcla (Merge) de Botellas
         Map<Long, Bottle> existingMap = allBottles.stream()
                 .collect(Collectors.toMap(Bottle::branchId, b -> b));
 
         List<Bottle> toSave = new ArrayList<>();
 
         for (BottleCreationRequest req : request.bottles()) {
-            System.out.println("Request quantity: " + req.quantity());
             if (req.branchId() == null) {
                 throw new RuntimeException("branchId es obligatorio");
             }
@@ -229,6 +232,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             Bottle existing = existingMap.get(req.branchId());
 
             if (existing != null) {
+                // Actualizar existente
                 toSave.add(new Bottle(
                         existing.id(),
                         id,
@@ -240,14 +244,22 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         req.branchId()
                 ));
             } else {
+                // Crear nueva (Usamos el mapper para generar el barcode y estructura base)
+                // Nota: Mantenemos la lógica de "agotada" por defecto si viene null
+                Bottle newBottleBase = mapper.toBottleDomain(req, id);
+
+                // Si el status venía null, el mapper lo deja null, aplicamos la regla de negocio aquí:
+                String finalStatus = req.status() != null ? req.status() : "agotada";
+
+                // Reconstruimos con el status asegurado (los records son inmutables)
                 toSave.add(new Bottle(
                         null,
                         id,
-                        req.status() != null ? req.status() : "agotada",
-                        BarcodeGenerator.generateAlphanumeric(12),
-                        req.volumeMl() != null ? req.volumeMl() : 100,
-                        req.remainingVolumeMl() != null ? req.remainingVolumeMl() : 100,
-                        req.quantity() != null ? req.quantity() : 1,
+                        finalStatus,
+                        newBottleBase.barcode(),
+                        newBottleBase.volumeMl() != null ? newBottleBase.volumeMl() : 100,
+                        newBottleBase.remainingVolumeMl() != null ? newBottleBase.remainingVolumeMl() : 100,
+                        newBottleBase.quantity() != null ? newBottleBase.quantity() : 1,
                         req.branchId()
                 ));
             }
@@ -255,41 +267,17 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         bottleRepositoryPort.updateAll(toSave);
 
-        List<Bottle> updatedBottles = bottleRepositoryPort.findAllByProductId(id);
-
-        List<BottleCreationResponse> bottleResp = updatedBottles.stream()
-                .map(b -> new BottleCreationResponse(
-                        b.id(),
-                        b.barcode(),
-                        branchRepositoryPort.findAll().stream()
-                                .filter(br -> br.id().equals(b.branchId()))
-                                .map(Branch::name)
-                                .findFirst().orElse("Sede desconocida"),
-                        b.volumeMl(),
-                        b.remainingVolumeMl(),
-                        b.quantity(),
-                        b.status(),
-                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
-                ))
+        // 5. Preparar Respuesta (¡Aquí es donde brilla el Mapper!)
+        List<BottleCreationResponse> bottleResp = bottleRepositoryPort.findAllByProductId(id).stream()
+                .map(mapper::toBottleResponse)
                 .toList();
 
         List<DecantResponse> decants = decantPriceRepositoryPort.findAllByProductId(id).stream()
-                .map(d -> new DecantResponse(d.getId(), d.getVolumeMl(), d.getPrice(), d.getBarcode(),
-                        BarcodeGenerator.generateBarcodeImageBase64(d.getBarcode())))
+                .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
+                .map(mapper::toDecantResponse)
                 .toList();
 
-        return new ProductDetailsResponse(
-                productEntity.getId(),
-                productEntity.getBrand(),
-                productEntity.getLine(),
-                productEntity.getConcentration(),
-                productEntity.getPrice(),
-                productEntity.getVolumeProductsMl(),
-                productEntity.getCreatedAt(),
-                productEntity.getUpdatedAt(),
-                bottleResp,
-                decants
-        );
+        return mapper.toProductDetailsResponse(productEntity, bottleResp, decants);
     }
 
 
