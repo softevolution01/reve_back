@@ -7,6 +7,7 @@ import java.util.List;
 public interface ClientRepositoryPort {
 
     List<Client> searchByFullnameOrDni(String query);
+    Client save(Client client);
     boolean existsByDni(String dni);
     boolean existsByEmail(String email);
 

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.ClientRepositoryPort;
 import reve_back.domain.model.Client;
+import reve_back.infrastructure.persistence.entity.ClientEntity;
 import reve_back.infrastructure.persistence.jpa.ClientJpaRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
 
@@ -21,6 +22,20 @@ public class ClientPersistenceAdapter implements ClientRepositoryPort {
         return clientJpaRepository.searchByFullnameOrDni(query).stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Client save(Client client) {
+        ClientEntity entity = new ClientEntity();
+
+        entity.setFullname(client.fullname());
+        entity.setDni(client.dni());
+        entity.setEmail(client.email());
+        entity.setPhone(client.phone());
+
+        ClientEntity savedEntity = clientJpaRepository.save(entity);
+
+        return mapper.toDomain(savedEntity);
     }
 
     @Override
