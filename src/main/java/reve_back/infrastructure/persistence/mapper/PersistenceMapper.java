@@ -1,14 +1,8 @@
 package reve_back.infrastructure.persistence.mapper;
 
 import org.springframework.stereotype.Component;
-import reve_back.domain.model.Branch;
-import reve_back.domain.model.Permission;
-import reve_back.domain.model.Role;
-import reve_back.domain.model.User;
-import reve_back.infrastructure.persistence.entity.BranchEntity;
-import reve_back.infrastructure.persistence.entity.PermissionEntity;
-import reve_back.infrastructure.persistence.entity.RoleEntity;
-import reve_back.infrastructure.persistence.entity.UserEntity;
+import reve_back.domain.model.*;
+import reve_back.infrastructure.persistence.entity.*;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,7 +36,7 @@ public class PersistenceMapper {
         Long cliendId = (entity.getClient() != null) ? entity.getClient().getId() : null;
 
         Set<Branch> branches = entity.getBranches().stream()
-                .map(this::toDomain) // <-- Llama al nuevo toDomain(BranchEntity)
+                .map(this::toDomain)
                 .collect(Collectors.toSet());
 
         return new User(
@@ -80,5 +74,20 @@ public class PersistenceMapper {
         entity.setPhone(domain.phone());
         entity.setPasswordHash(domain.passwordHash());
         return entity;
+    }
+
+    public Client toDomain(ClientEntity entity) {
+        if (entity == null) return null;
+        return new reve_back.domain.model.Client(
+                entity.getId(),
+                entity.getFullname(),
+                entity.getDni(),
+                entity.getEmail(),
+                entity.getPhone(),
+                entity.isVip(),
+                entity.getVipSince(),
+                entity.getVipPurchaseCounter(),
+                entity.getCreatedAt()
+        );
     }
 }
