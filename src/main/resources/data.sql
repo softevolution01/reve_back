@@ -23,7 +23,8 @@ INSERT INTO permissions (name) VALUES
 ('catalog:delete'),
 ('catalog:create'),
 ('catalog:read:all'),
-('catalog:read:detail')
+('catalog:read:detail'),
+('sales:create:client')
 ON CONFLICT (name) DO NOTHING;
 
 -- ==================================================================
@@ -59,7 +60,7 @@ SELECT r.id, p.id
 FROM roles r, permissions p
 WHERE r.name = 'Empleado de Tienda'
   AND p.name IN (
-            'menu:sales:access', 'menu:inventory:access', 'sale:create'
+            'menu:sales:access', 'menu:inventory:access','catalog:read:all', 'sale:create','sales:create:client'
           )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 

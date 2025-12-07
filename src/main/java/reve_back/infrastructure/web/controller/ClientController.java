@@ -22,13 +22,13 @@ public class ClientController {
     private final CreateClientUseCase createClientUseCase;
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('catalog:read:all')")
+    @PreAuthorize("hasAuthority('sales:create:client')")
     public ResponseEntity<List<ClientResponse>> searchClients(@RequestParam("query") String query) {
         return ResponseEntity.ok(searchClientUseCase.searchClients(query));
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('catalog:read:all')")
+    @PreAuthorize("hasAuthority('sales:create:client')")
     public ResponseEntity<ClientResponse> createClient(@Valid @RequestBody ClientCreationRequest request) {
         ClientResponse response = createClientUseCase.createClient(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
