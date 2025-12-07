@@ -28,7 +28,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     private final DecantPriceRepositoryPort decantPriceRepositoryPort;
     private final UserRepositoryPort userRepositoryPort;
     private final ProductDtoMapper mapper;
-//    private final UserJpaRepository userJpaRepository;
 
     @Override
     @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
@@ -38,57 +37,40 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 request.brand(),
                 request.line(),
                 request.unitVolumeMl() != null ? request.unitVolumeMl() : 0
-
         )) {
             throw new RuntimeException("El producto ya existe con esa marca, línea o volumen.");
         }
 
-        NewProduct newProduct = new NewProduct(
-                request.brand(),
-                request.line(),
-                request.concentration(),
-                request.price(),
-                request.unitVolumeMl()
-        );
+        // 2. Crear Producto (Usando Mapper para convertir Request -> Domain)
+        NewProduct newProduct = mapper.toNewProductDomain(request);
         Product savedProduct = productRepositoryPort.save(newProduct);
 
         List<Bottle> bottles;
 
         if (request.bottles() == null || request.bottles().isEmpty()) {
+            // Lógica: Crear botellas vacías para TODAS las sedes
             List<Branch> branches = branchRepositoryPort.findAll();
             if (branches.isEmpty()) {
                 throw new RuntimeException("No hay sedes registradas en el sistema.");
             }
-
             bottles = branches.stream()
                     .map(branch -> new Bottle(
                             null,
                             savedProduct.id(),
-                            BottlesStatus.AGOTADA.getValue(),          // estado por defecto
-                            BarcodeGenerator.generateAlphanumeric(12), // barcode automático
-                            0,                                       // volumeMl = 0
-                            0,                                       // remainingVolumeMl = 0
-                            0,
-                            branch.id()                              // branchId de la sede
+                            BottlesStatus.AGOTADA.getValue(),
+                            BarcodeGenerator.generateAlphanumeric(12),
+                            0, 0, 0,
+                            branch.id()
                     ))
                     .collect(Collectors.toList());
-
-        }else {
+        } else {
+            // Lógica: Crear botellas según lo que pide el usuario (Usando Mapper)
             bottles = request.bottles().stream()
-                    .map(req -> new Bottle(
-                            null,
-                            savedProduct.id(),
-                            req.status(),
-                            BarcodeGenerator.generateAlphanumeric(12),
-                            req.volumeMl(),
-                            req.remainingVolumeMl(),
-                            req.quantity(),
-                            req.branchId()
-                    ))
+                    .map(req -> mapper.toBottleDomain(req, savedProduct.id()))
                     .collect(Collectors.toList());
         }
 
-        // 5. Guardar botellas
+        // 3. Guardar Botellas
         List<Bottle> savedBottles;
         try {
             savedBottles = bottleRepositoryPort.saveAll(bottles);
@@ -99,50 +81,25 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             throw ex;
         }
 
-        // Mapear respuesta
-        List<BottleCreationResponse> bottleResponse = savedBottles.stream()
-                .map(b -> new BottleCreationResponse(
-                        b.id(),
-                        b.barcode(),
-                        branchRepositoryPort.findAll().stream()
-                                .filter(branch -> Objects.equals(branch.id(), b.branchId()))
-                                .map(branch -> branch.name())
-                                .findFirst()
-                                .orElse("Sede no encontrada"),
-                        b.volumeMl(),
-                        b.remainingVolumeMl(),
-                        b.quantity(),
-                        b.status(),
-                        BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
-                ))
-                .collect(Collectors.toList());
-
-        List<DecantResponse> decantResponses = List.of();
+        // 4. Guardar Decants (si existen)
+        List<DecantPrice> savedDecants = List.of();
         if (request.decants() != null && !request.decants().isEmpty()) {
-            List<DecantPrice> savedDecants = decantPriceRepositoryPort.saveAllForProduct(
+            savedDecants = decantPriceRepositoryPort.saveAllForProduct(
                     savedProduct.id(),
                     request.decants()
             );
-            decantResponses = savedDecants.stream()
-                    .map(d -> new DecantResponse(
-                            d.id(),
-                            d.volumeMl(),
-                            d.price(),
-                            d.barcode(),
-                            BarcodeGenerator.generateBarcodeImageBase64(d.barcode())))
-                    .toList();
         }
 
-        return new ProductCreationResponse(
-                savedProduct.id(),
-                savedProduct.brand(),
-                savedProduct.line(),
-                savedProduct.concentration(),
-                savedProduct.price(),
-                bottleResponse,
-                decantResponses
-        );
+        // 5. Construir Respuesta Final (Usando Mapper para todo)
+        List<BottleCreationResponse> bottleResponses = savedBottles.stream()
+                .map(mapper::toBottleResponse)
+                .toList();
 
+        List<DecantResponse> decantResponses = savedDecants.stream()
+                .map(mapper::toDecantResponse)
+                .toList();
+
+        return mapper.toProductCreationResponse(savedProduct, bottleResponses, decantResponses);
     }
 
     @Override

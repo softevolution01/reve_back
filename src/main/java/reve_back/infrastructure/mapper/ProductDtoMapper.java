@@ -3,9 +3,7 @@ package reve_back.infrastructure.mapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.application.ports.out.BranchRepositoryPort;
-import reve_back.domain.model.Bottle;
-import reve_back.domain.model.Branch;
-import reve_back.domain.model.DecantPrice;
+import reve_back.domain.model.*;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
@@ -57,6 +55,41 @@ public class ProductDtoMapper {
                 dto.volumeProductsMl(),
                 bottles,
                 decants
+        );
+    }
+
+    public ProductCreationResponse toProductCreationResponse(Product p, List<BottleCreationResponse> bottles, List<DecantResponse> decants) {
+        return new ProductCreationResponse(
+                p.id(),
+                p.brand(),
+                p.line(),
+                p.concentration(),
+                p.price(),
+                bottles,
+                decants
+        );
+    }
+
+    public NewProduct toNewProductDomain(ProductCreationRequest request) {
+        return new NewProduct(
+                request.brand(),
+                request.line(),
+                request.concentration(),
+                request.price(),
+                request.unitVolumeMl()
+        );
+    }
+
+    public Bottle toBottleDomain(BottleCreationRequest req, Long productId) {
+        return new Bottle(
+                null,
+                productId,
+                req.status(),
+                BarcodeGenerator.generateAlphanumeric(12),
+                req.volumeMl(),
+                req.remainingVolumeMl(),
+                req.quantity(),
+                req.branchId()
         );
     }
 }
