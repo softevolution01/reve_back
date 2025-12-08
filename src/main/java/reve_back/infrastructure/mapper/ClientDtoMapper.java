@@ -20,8 +20,8 @@ public class ClientDtoMapper {
     }
 
     public Client toDomain(ClientCreationRequest request) {
-        return new reve_back.domain.model.Client(
-                null, // ID
+        return new Client(
+                null,
                 request.fullname(),
                 request.dni(),
                 request.email(),
