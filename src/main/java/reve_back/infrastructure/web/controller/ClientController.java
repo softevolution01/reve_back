@@ -15,7 +15,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/v1/clients")
+@RequestMapping("/api/clients")
 public class ClientController {
 
     private final SearchClientUseCase searchClientUseCase;
