@@ -27,15 +27,29 @@ public class ClientPersistenceAdapter implements ClientRepositoryPort {
 
     @Override
     public Client save(Client client) {
-        ClientEntity entity = new ClientEntity();
+        ClientEntity entity;
 
+        if (client.id() != null) {
+            // Si tiene ID, buscamos el existente para actualizarlo
+            entity = clientJpaRepository.findById(client.id())
+                    .orElseThrow(() -> new RuntimeException("Cliente no encontrado para actualizar"));
+        } else {
+            // Si no tiene ID, es uno nuevo
+            entity = new ClientEntity();
+        }
+
+        // Actualizamos campos
         entity.setFullname(client.fullname());
         entity.setDni(client.dni());
         entity.setEmail(client.email());
         entity.setPhone(client.phone());
 
-        ClientEntity savedEntity = clientJpaRepository.save(entity);
+        // Importante: Actualizar el estado VIP y contadores
+        entity.setVip(client.isVip());
+        entity.setVipSince(client.vipSince());
+        entity.setVipPurchaseCounter(client.vipPurchaseCounter());
 
+        ClientEntity savedEntity = clientJpaRepository.save(entity);
         return mapper.toDomain(savedEntity);
     }
 
