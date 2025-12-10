@@ -4,21 +4,28 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.CreateClientUseCase;
+import reve_back.application.ports.in.GetClientPointsUseCase;
 import reve_back.application.ports.in.SearchClientUseCase;
 import reve_back.application.ports.out.ClientRepositoryPort;
+import reve_back.application.ports.out.SalesRepositoryPort;
 import reve_back.domain.model.Client;
 import reve_back.infrastructure.mapper.ClientDtoMapper;
 import reve_back.infrastructure.web.dto.ClientCreationRequest;
+import reve_back.infrastructure.web.dto.ClientPointsResponse;
 import reve_back.infrastructure.web.dto.ClientResponse;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RequiredArgsConstructor
 @Service
-public class ClientService implements SearchClientUseCase, CreateClientUseCase {
+public class ClientService implements SearchClientUseCase, CreateClientUseCase, GetClientPointsUseCase {
 
 
     private final ClientRepositoryPort clientRepositoryPort;
+    private final SalesRepositoryPort salesRepositoryPort;
     private final ClientDtoMapper clientDtoMapper;
 
     @Override
@@ -52,5 +59,60 @@ public class ClientService implements SearchClientUseCase, CreateClientUseCase {
         Client savedClient = clientRepositoryPort.save(newClient);
 
         return clientDtoMapper.toResponse(savedClient);
+    }
+
+    @Override
+    public ClientPointsResponse getClientPoints(Long clientId) {
+        // 1. Obtener Cliente (Necesitamos un método findById en el puerto, vamos a asumir que existe o agregarlo)
+        // Por ahora usaré searchByFullnameOrDni si no tenemos findById, pero lo ideal es findById.
+        // Vamos a suponer que agregamos findById al ClientRepositoryPort abajo.
+        Client client = clientRepositoryPort.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+
+        // 2. Calcular monto histórico
+        BigDecimal historicalTotal = salesRepositoryPort.getTotalSalesByClient(clientId);
+
+        // 3. Regla VIP: Si no es VIP pero superó 100 soles, actualizar.
+        boolean isVip = client.isVip();
+        LocalDateTime vipSince = client.vipSince();
+
+        if (!isVip && historicalTotal.compareTo(new BigDecimal("100.00")) >= 0) {
+            isVip = true;
+            vipSince = LocalDateTime.now();
+
+            // Actualizamos el cliente en BBDD (Inmutabilidad del Record: creamos uno nuevo)
+            Client upgradedClient = new Client(
+                    client.id(), client.fullname(), client.dni(), client.email(), client.phone(),
+                    true, vipSince, client.vipPurchaseCounter(), client.createdAt()
+            );
+            clientRepositoryPort.save(upgradedClient);
+        }
+
+        // 4. Calcular puntos post-VIP [cite: 486]
+        BigDecimal postVipTotal = BigDecimal.ZERO;
+        BigDecimal cycleAccumulated = BigDecimal.ZERO;
+        int cyclesCompleted = 0;
+
+        if (isVip && vipSince != null) {
+            postVipTotal = salesRepositoryPort.getTotalSalesByClientAfterDate(clientId, vipSince);
+
+            BigDecimal cycleAmount = new BigDecimal("1800.00");
+
+            // Ciclos completados (división entera)
+            cyclesCompleted = postVipTotal.divide(cycleAmount, 0, RoundingMode.DOWN).intValue();
+
+            // Monto acumulado en el ciclo actual (resto)
+            cycleAccumulated = postVipTotal.remainder(cycleAmount);
+        }
+
+        return new ClientPointsResponse(
+                client.id(),
+                client.fullname(),
+                isVip,
+                historicalTotal,
+                postVipTotal,
+                cycleAccumulated,
+                cyclesCompleted
+        );
     }
 }

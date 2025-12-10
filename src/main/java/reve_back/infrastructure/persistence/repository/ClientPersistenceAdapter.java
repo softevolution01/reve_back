@@ -9,6 +9,7 @@ import reve_back.infrastructure.persistence.jpa.ClientJpaRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
 
 import java.util.List;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Repository
@@ -36,6 +37,12 @@ public class ClientPersistenceAdapter implements ClientRepositoryPort {
         ClientEntity savedEntity = clientJpaRepository.save(entity);
 
         return mapper.toDomain(savedEntity);
+    }
+
+    @Override
+    public Optional<Client> findById(Long id) {
+        return clientJpaRepository.findById(id)
+                .map(mapper::toDomain);
     }
 
     @Override
