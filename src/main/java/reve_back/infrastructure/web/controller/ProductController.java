@@ -13,7 +13,7 @@ import reve_back.infrastructure.web.dto.*;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("api/products")
+@RequestMapping("/products")
 public class ProductController {
 
     private final ListProductsUseCase listProductsUseCase;
