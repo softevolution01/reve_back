@@ -8,12 +8,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.CreateClientUseCase;
 import reve_back.application.ports.in.GetClientPointsUseCase;
-import reve_back.application.ports.in.ScanBarcodeUseCase;
 import reve_back.application.ports.in.SearchClientUseCase;
 import reve_back.infrastructure.web.dto.ClientCreationRequest;
 import reve_back.infrastructure.web.dto.ClientPointsResponse;
 import reve_back.infrastructure.web.dto.ClientResponse;
-import reve_back.infrastructure.web.dto.ScanBarcodeResponse;
 
 import java.util.List;
 
@@ -25,7 +23,6 @@ public class ClientController {
     private final SearchClientUseCase searchClientUseCase;
     private final CreateClientUseCase createClientUseCase;
     private final GetClientPointsUseCase getClientPointsUseCase;
-    private final ScanBarcodeUseCase scanBarcodeUseCase;
 
     @GetMapping("/search")
     @PreAuthorize("hasAuthority('sales:create:client')")
@@ -44,11 +41,5 @@ public class ClientController {
     @PreAuthorize("hasAuthority('sales:create:client')")
     public ResponseEntity<ClientPointsResponse> getClientPoints(@PathVariable Long clientId) {
         return ResponseEntity.ok(getClientPointsUseCase.getClientPoints(clientId));
-    }
-
-    @GetMapping("/barcode/{barcode}")
-    @PreAuthorize("hasAuthority('sales:create:client')")
-    public ResponseEntity<ScanBarcodeResponse> scanProduct(@PathVariable String barcode) {
-        return ResponseEntity.ok(scanBarcodeUseCase.scanBarcode(barcode));
     }
 }
