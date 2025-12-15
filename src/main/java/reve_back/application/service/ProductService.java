@@ -33,9 +33,10 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Transactional(rollbackFor = {DataIntegrityViolationException.class, Exception.class})
     public ProductCreationResponse createProduct(ProductCreationRequest request) {
 
-        if (productRepositoryPort.existsByBrandLineAndVolumeProductsMl(
+        if (productRepositoryPort.existsByBrandAndLineAndConcentrationAndVolumeProductsMl(
                 request.brand(),
                 request.line(),
+                request.concentration(),
                 request.unitVolumeMl() != null ? request.unitVolumeMl() : 0
         )) {
             throw new RuntimeException("El producto ya existe con esa marca, línea o volumen.");
@@ -54,6 +55,30 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 throw new RuntimeException("No hay sedes registradas en el sistema.");
             }
             bottles = branches.stream()
+                    .flatMap(branch -> {
+                        List<Bottle> branchBottles = new ArrayList<>();
+
+                        branchBottles.add(new Bottle(
+                                null,
+                                savedProduct.id(),
+                                BottlesStatus.AGOTADA.getValue(),
+                                BarcodeGenerator.generateAlphanumeric(12),
+                                0, 0, 0,
+                                branch.id())
+                        );
+                        branchBottles.add(new Bottle(
+                                null,
+                                savedProduct.id(),
+                                BottlesStatus.DECANT_AGOTADA.getValue(),
+                                null,
+                                0, 0, 0,
+                                branch.id())
+                        );
+                        return branchBottles.stream();
+                    })
+                    .collect(Collectors.toList());
+
+            /*bottles = branches.stream()
                     .map(branch -> new Bottle(
                             null,
                             savedProduct.id(),
@@ -62,7 +87,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             0, 0, 0,
                             branch.id()
                     ))
-                    .collect(Collectors.toList());
+                    .collect(Collectors.toList());*/
         } else {
             // Lógica: Crear botellas según lo que pide el usuario (Usando Mapper)
             bottles = request.bottles().stream()
@@ -72,6 +97,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         // 3. Guardar Botellas
         List<Bottle> savedBottles;
+
         try {
             savedBottles = bottleRepositoryPort.saveAll(bottles);
         } catch (DataIntegrityViolationException ex) {
@@ -201,8 +227,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 !productEntity.getLine().equals(request.line()) ||
                 !Objects.equals(productEntity.getVolumeProductsMl(), request.unitVolumeMl())) {
 
-            boolean exists = productRepositoryPort.existsByBrandLineAndVolumeProductsMlAndIdNot(
-                    request.brand(), request.line(),
+            boolean exists = productRepositoryPort.existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(
+                    request.brand(), request.line(),request.concentration(),
                     request.unitVolumeMl() != null ? request.unitVolumeMl() : 0, id
             );
             if (exists) {

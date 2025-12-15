@@ -3,7 +3,8 @@ package reve_back.domain.model;
 public enum BottlesStatus {
     SELLADA("sellada"),
     AGOTADA("agotada"),
-    DECANTADA("decantada");
+    DECANTADA("decantada"),
+    DECANT_AGOTADA("decant-agotada");
 
     private final String value;
 

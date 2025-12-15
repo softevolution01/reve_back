@@ -19,6 +19,6 @@ public interface SpringDataProductRepository extends JpaRepository<ProductEntity
     @Query("SELECT COUNT(p) FROM ProductEntity p WHERE p.is_active = true")
     long countByIsActiveTrue();
 
-    boolean existsByBrandAndLineAndVolumeProductsMl(String brand, String line, Integer unitVolumeMl);
-    boolean existsByBrandAndLineAndVolumeProductsMlAndIdNot(String brand, String line, Integer unitVolumeMl, Long id);
+    boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMl(String brand, String line,String concentration, Integer unitVolumeMl);
+    boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(String brand, String line,String concentration, Integer unitVolumeMl, Long id);
 }

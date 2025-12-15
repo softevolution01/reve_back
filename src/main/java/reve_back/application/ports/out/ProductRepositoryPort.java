@@ -19,6 +19,6 @@ public interface ProductRepositoryPort {
     boolean existsByBrandAndLineAndIdNot(String brand, String lines, Long id);
     List<DecantPriceEntity> findAllByProductId(Long productId);
 
-    boolean existsByBrandLineAndVolumeProductsMl(String brand, String line, Integer unitVolumeMl);
-    boolean existsByBrandLineAndVolumeProductsMlAndIdNot(String brand, String line, Integer unitVolumeMl, Long id);
+    boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMl(String brand, String line,String concentration, Integer unitVolumeMl);
+    boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(String brand, String line, String concentration,Integer unitVolumeMl, Long id);
 }

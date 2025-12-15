@@ -101,12 +101,12 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     }
 
     @Override
-    public boolean existsByBrandLineAndVolumeProductsMl(String brand, String line, Integer unitVolumeMl) {
-        return springDataProductRepository.existsByBrandAndLineAndVolumeProductsMl(brand, line, unitVolumeMl);
+    public boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMl(String brand, String line,String concentration, Integer unitVolumeMl) {
+        return springDataProductRepository.existsByBrandAndLineAndConcentrationAndVolumeProductsMl(brand, line,concentration, unitVolumeMl);
     }
 
     @Override
-    public boolean existsByBrandLineAndVolumeProductsMlAndIdNot(String brand, String line, Integer unitVolumeMl, Long id) {
-        return springDataProductRepository.existsByBrandAndLineAndVolumeProductsMlAndIdNot(brand, line, unitVolumeMl, id);
+    public boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(String brand, String line,String concentration, Integer unitVolumeMl, Long id) {
+        return springDataProductRepository.existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(brand, line,concentration, unitVolumeMl, id);
     }
 }

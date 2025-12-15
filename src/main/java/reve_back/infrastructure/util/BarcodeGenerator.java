@@ -26,6 +26,9 @@ public class BarcodeGenerator {
     }
 
     public static String generateBarcodeImageBase64(String barcodeText) {
+        if (barcodeText == null || barcodeText.isEmpty()) {
+            return null;
+        }
         try {
             Code128Writer writer = new Code128Writer();
             BitMatrix bitMatrix = writer.encode(barcodeText, BarcodeFormat.CODE_128, 300, 100);

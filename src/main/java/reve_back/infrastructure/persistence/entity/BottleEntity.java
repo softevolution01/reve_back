@@ -1,5 +1,6 @@
 package reve_back.infrastructure.persistence.entity;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
