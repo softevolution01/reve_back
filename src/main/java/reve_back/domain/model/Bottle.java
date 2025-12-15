@@ -8,6 +8,6 @@ public record Bottle(
         Integer volumeMl,
         Integer remainingVolumeMl,
         Integer quantity,
-        Long branchId
+        Long warehouseId
 ) {
 }

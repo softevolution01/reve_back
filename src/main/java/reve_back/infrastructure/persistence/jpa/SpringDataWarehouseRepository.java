@@ -2,12 +2,8 @@ package reve_back.infrastructure.persistence.jpa;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
-import reve_back.infrastructure.persistence.entity.BottleEntity;
-
-import java.util.List;
+import reve_back.infrastructure.persistence.entity.WarehouseEntity;
 
 @RepositoryRestResource(exported = false)
-public interface SpringDataBottleRepository extends JpaRepository<BottleEntity,Long> {
-    List<BottleEntity> findByProductId(Long productId);
-
+public interface SpringDataWarehouseRepository extends JpaRepository<WarehouseEntity, Long> {
 }

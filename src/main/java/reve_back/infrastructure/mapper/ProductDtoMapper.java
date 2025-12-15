@@ -19,7 +19,7 @@ public class ProductDtoMapper {
 
     public BottleCreationResponse toBottleResponse(Bottle b) {
         String branchName = branchRepositoryPort.findAll().stream()
-                .filter(branch -> Objects.equals(branch.id(), b.branchId()))
+                .filter(branch -> Objects.equals(branch.id(), b.warehouseId()))
                 .map(Branch::name)
                 .findFirst()
                 .orElse("Sede no encontrada");

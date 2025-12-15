@@ -80,6 +80,7 @@ WHERE r.name = 'Cliente'
   AND p.name = 'catalog:read:all'
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
+
 -- ==================================================================
 -- 4. SUCURSALES
 -- ==================================================================
@@ -87,6 +88,7 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 --SELECT 'Sede Principal CC', 'Arequipa'
 --WHERE NOT EXISTS (SELECT 1 FROM branches WHERE name = 'Sede Principal CC');
 
-INSERT INTO branches (name, location)
-SELECT 'Sede Plaza de Armas', 'Arequipa'
-WHERE NOT EXISTS (SELECT 1 FROM branches WHERE name = 'Sede Plaza de Armas');
+
+--INSERT INTO branches (name, location)
+--SELECT 'Sede Plaza de Armas', 'Arequipa'
+--WHERE NOT EXISTS (SELECT 1 FROM branches WHERE name = 'Sede Plaza de Armas');

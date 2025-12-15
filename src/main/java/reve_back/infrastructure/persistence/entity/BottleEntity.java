@@ -16,7 +16,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Table(name = "bottles")
 public class BottleEntity {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -37,9 +36,6 @@ public class BottleEntity {
     @Column(nullable = false)
     private Integer quantity;
 
-    @Column(name = "branch_id", nullable = false)
-    private Long branchId;
-
     @Column(name = "created_at")
     @CreationTimestamp
     private java.time.LocalDateTime createdAt;
@@ -47,4 +43,8 @@ public class BottleEntity {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private java.time.LocalDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id", nullable = false)
+    private WarehouseEntity warehouse;
 }

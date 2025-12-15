@@ -143,7 +143,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
                     // 2. Filtrar botellas por sede del usuario
                     List<BottleCreationResponse> validBottles = allBottles.stream()
-                            .filter(b -> userBranchIds.contains(b.branchId()))
+                            .filter(b -> userBranchIds.contains(b.warehouseId()))
                             .map(mapper::toBottleResponse)
                             .toList();
 
@@ -182,7 +182,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         // Usamos el mapper
         List<BottleCreationResponse> bottleResponses = bottleRepositoryPort.findAllByProductId(id).stream()
-                .filter(b -> userBranchIds.contains(b.branchId()))
+                .filter(b -> userBranchIds.contains(b.warehouseId()))
                 .map(mapper::toBottleResponse)
                 .toList();
 
@@ -246,7 +246,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         // 4. Lógica de mezcla (Merge) de Botellas
         Map<Long, Bottle> existingMap = allBottles.stream()
-                .collect(Collectors.toMap(Bottle::branchId, b -> b));
+                .collect(Collectors.toMap(Bottle::warehouseId, b -> b));
 
         List<Bottle> toSave = new ArrayList<>();
 

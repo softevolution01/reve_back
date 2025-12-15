@@ -27,4 +27,9 @@ public class BranchEntity {
 
     @ManyToMany(mappedBy = "branches", fetch = FetchType.LAZY)
     private Set<UserEntity> users = new HashSet<>();
+
+    //Una sucursal pertenece a UN solo almacén (Many-to-One)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id", nullable = false) // Columna warehouse_id en la tabla 'branches'
+    private WarehouseEntity warehouse;
 }
