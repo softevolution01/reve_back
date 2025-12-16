@@ -19,7 +19,8 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
-public class ProductService implements ListProductsUseCase, CreateProductUseCase, GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase {
+public class ProductService implements ListProductsUseCase, CreateProductUseCase,
+        GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase, ScanBarcodeUseCase {
 
 
     private final ProductRepositoryPort productRepositoryPort;
@@ -112,7 +113,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                     List<Bottle> allBottles = bottleRepositoryPort.findAllByProductId(summary.id());
                     List<DecantPrice> allDecants = decantPriceRepositoryPort.findAllByProductId(summary.id())
                             .stream()
-                            .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
+                            .map(e -> new DecantPrice(e.getId(), e.getProductId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
                             .toList();
 
                     // 2. Filtrar botellas por sede del usuario
@@ -164,7 +165,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         // Usamos el mapper
         List<DecantResponse> decantResponses = decantPriceRepositoryPort.findAllByProductId(id).stream()
-                .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode())) // A dominio
+                .map(e -> new DecantPrice(e.getId(), e.getProductId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
                 .map(mapper::toDecantResponse)
                 .toList();
 
@@ -273,7 +274,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 .toList();
 
         List<DecantResponse> decants = decantPriceRepositoryPort.findAllByProductId(id).stream()
-                .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
+                .map(e -> new DecantPrice(e.getId(), e.getProductId() ,e.getVolumeMl(), e.getPrice(), e.getBarcode()))
                 .map(mapper::toDecantResponse)
                 .toList();
 
@@ -307,5 +308,53 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         .map(Branch::id)
                         .collect(Collectors.toSet()))
                 .orElse(Set.of());
+    }
+
+    @Override
+    public ScanBarcodeResponse scanBarcode(String barcode) {
+        // REGLA 1: Buscar en bottles.barcode
+        // Solo botellas con status = 'sellada'
+        Optional<Bottle> bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, "sellada");
+
+        if (bottleOpt.isPresent()) {
+            Bottle bottle = bottleOpt.get();
+
+            // Obtenemos info del producto padre (Marca, Línea)
+            ProductEntity productEntity = productRepositoryPort.findById(bottle.productId());
+
+            // Creamos objeto temporal de dominio para el mapper
+            Product product = new Product(
+                    productEntity.getId(),
+                    productEntity.getBrand(),
+                    productEntity.getLine(),
+                    productEntity.getConcentration(),
+                    productEntity.getPrice()
+            );
+
+            // "La venta se realiza contra ese bottles.id" -> idInventario = bottle.id
+            return mapper.toScanResponse(bottle, product, product.price());
+        }
+
+        // REGLA 2: Si no es botella, buscar en decant_prices.barcode
+        Optional<DecantPrice> decantOpt = decantPriceRepositoryPort.findByBarcode(barcode);
+
+        if (decantOpt.isPresent()) {
+            DecantPrice decant = decantOpt.get();
+
+            ProductEntity productEntity = productRepositoryPort.findById(decant.productId());
+
+            Product product = new Product(
+                    productEntity.getId(),
+                    productEntity.getBrand(),
+                    productEntity.getLine(),
+                    productEntity.getConcentration(),
+                    productEntity.getPrice()
+            );
+
+            // "La venta se realiza contra el decant_prices.id" -> idInventario = decant.id
+            return mapper.toScanResponse(decant, product);
+        }
+
+        throw new RuntimeException("Producto no encontrado con código de barras: " + barcode);
     }
 }

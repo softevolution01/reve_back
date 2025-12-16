@@ -1,0 +1,29 @@
+image: atlassian/default-image:3
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Despliegue Java (Update Code & Restart)
+          script:
+            - pipe: atlassian/ssh-run:0.4.1
+              variables:
+                SSH_USER: 'root'
+                SERVER: $SERVER_IP
+                COMMAND: |
+                  
+                  export PROJECT_DIR="/home/user/reve_back"
+                  
+                  echo "🚀 Conectando al servidor..."
+                  cd $PROJECT_DIR
+                  
+                  echo "⬇️ Bajando cambios de Git..."
+                  git config --global --add safe.directory $PROJECT_DIR
+                  git fetch --all
+                  git reset --hard origin/main
+                  
+                  echo "🔄 Ejecutando script de despliegue local..."
+                  chmod +x deploy.sh
+                  ./deploy.sh
+                  
+                  echo "✅ Pipeline finalizado."

@@ -108,4 +108,28 @@ public class ProductDtoMapper {
                 decants
         );
     }
+
+    public ScanBarcodeResponse toScanResponse(Bottle bottle, Product product, Double priceOverride) {
+        return new ScanBarcodeResponse(
+                bottle.id(),
+                "Botella",
+                product.id(),
+                product.brand(),
+                product.line(),
+                bottle.volumeMl(),
+                priceOverride
+        );
+    }
+
+    public ScanBarcodeResponse toScanResponse(DecantPrice decant, Product product) {
+        return new ScanBarcodeResponse(
+                decant.id(),
+                "Decant",
+                product.id(),
+                product.brand(),
+                product.line(),
+                decant.volumeMl(),
+                decant.price()
+        );
+    }
 }
