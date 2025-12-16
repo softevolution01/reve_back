@@ -25,11 +25,14 @@ public class BranchEntity {
 
     private String location;
 
+    @Column(name = "is_cash_managed_centralized")
+    private boolean isCashManagedCentralized = true;
+
+    // Correcto: Permite saber qué personal trabaja en esta sede
     @ManyToMany(mappedBy = "branches", fetch = FetchType.LAZY)
     private Set<UserEntity> users = new HashSet<>();
 
-    //Una sucursal pertenece a UN solo almacén (Many-to-One)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "warehouse_id", nullable = false) // Columna warehouse_id en la tabla 'branches'
+    @JoinColumn(name = "warehouse_id", nullable = false)
     private WarehouseEntity warehouse;
 }

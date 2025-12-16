@@ -46,14 +46,14 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                     return new BottleEntity(
                             null,
                             bottle.productId(),
+                            warehouse,
                             bottle.status(),
                             bottle.barcode(),
                             bottle.volumeMl(),
                             bottle.remainingVolumeMl(),
                             bottle.quantity(),
-                            null, // createdAt
-                            null, // updatedAt
-                            warehouse // <--- ¡Objeto WarehouseEntity!
+                            null,
+                            null
                     );
                 })
                 .collect(Collectors.toList());

@@ -23,6 +23,11 @@ public class BottleEntity {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id", nullable = false)
+    private WarehouseEntity warehouse;
+
+    @Column(nullable = false)
     private String status;
 
     private String barcode;
@@ -44,7 +49,4 @@ public class BottleEntity {
     @UpdateTimestamp
     private java.time.LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "warehouse_id", nullable = false)
-    private WarehouseEntity warehouse;
 }
