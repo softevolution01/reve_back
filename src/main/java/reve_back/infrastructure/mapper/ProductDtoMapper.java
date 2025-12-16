@@ -3,11 +3,14 @@ package reve_back.infrastructure.mapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.application.ports.out.BranchRepositoryPort;
+import reve_back.application.ports.out.WarehouseRepositoryPort;
 import reve_back.domain.model.*;
+import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -15,24 +18,51 @@ import java.util.Objects;
 @Component
 public class ProductDtoMapper {
 
-    private final BranchRepositoryPort branchRepositoryPort;
+    private final WarehouseRepositoryPort warehouseRepositoryPort;
+
+    public Product toDomain(ProductCreationRequest request) {
+        return new Product(
+                null,
+                request.brand().toUpperCase().trim(),
+                request.price(),
+                request.line().toUpperCase().trim(),
+                request.concentration().toUpperCase().trim(),
+                request.unitVolumeMl(),
+                true, // is_active
+                null, // createdAt
+                null  // updatedAt
+        );
+    }
+
+    public Product toDomain(Long id, ProductUpdateRequest request, Product existing) {
+        return new Product(
+                id,
+                request.brand().toUpperCase().trim(),
+                request.price(),
+                request.line().toUpperCase().trim(),
+                request.concentration().toUpperCase().trim(),
+                request.unitVolumeMl(),
+                existing.isActive(), // Mantenemos el estado actual
+                existing.createdAt(), // Mantenemos fecha creación
+                null // El updatedAt lo pondrá Hibernate
+        );
+    }
 
     public BottleCreationResponse toBottleResponse(Bottle b) {
-        String branchName = branchRepositoryPort.findAll().stream()
-                .filter(branch -> Objects.equals(branch.id(), b.warehouseId()))
-                .map(Branch::name)
-                .findFirst()
-                .orElse("Sede no encontrada");
+        // En lugar de buscar en todas las sedes, buscamos el nombre del Almacén
+        String warehouseName = warehouseRepositoryPort.findById(b.warehouseId())
+                .map(Warehouse::name)
+                .orElse("Almacén no encontrado");
 
         return new BottleCreationResponse(
                 b.id(),
                 b.barcode(),
-                branchName,
+                warehouseName,
                 b.volumeMl(),
                 b.remainingVolumeMl(),
                 b.quantity(),
                 b.status(),
-                BarcodeGenerator.generateBarcodeImageBase64(b.barcode())
+                b.barcode() != null ? BarcodeGenerator.generateBarcodeImageBase64(b.barcode()) : null
         );
     }
 
@@ -71,39 +101,29 @@ public class ProductDtoMapper {
         );
     }
 
-    public NewProduct toNewProductDomain(ProductCreationRequest request) {
-        return new NewProduct(
-                request.brand(),
-                request.line(),
-                request.concentration(),
-                request.price(),
-                request.unitVolumeMl()
-        );
-    }
-
     public Bottle toBottleDomain(BottleCreationRequest req, Long productId) {
         return new Bottle(
                 null,
                 productId,
+                req.warehouseId(),
                 req.status(),
                 BarcodeGenerator.generateAlphanumeric(12),
                 req.volumeMl(),
                 req.remainingVolumeMl(),
-                req.quantity(),
-                req.branchId()
+                req.quantity()
         );
     }
 
-    public ProductDetailsResponse toProductDetailsResponse(ProductEntity p, List<BottleCreationResponse> bottles, List<DecantResponse> decants) {
+    public ProductDetailsResponse toProductDetailsResponse(Product p, List<BottleCreationResponse> bottles, List<DecantResponse> decants) {
         return new ProductDetailsResponse(
-                p.getId(),
-                p.getBrand(),
-                p.getLine(),
-                p.getConcentration(),
-                p.getPrice(),
-                p.getVolumeProductsMl(),
-                p.getCreatedAt(),
-                p.getUpdatedAt(),
+                p.id(),
+                p.brand(),
+                p.line(),
+                p.concentration(),
+                p.price(),
+                p.volumeProductsMl(),
+                p.createdAt(),
+                p.updatedAt(),
                 bottles,
                 decants
         );

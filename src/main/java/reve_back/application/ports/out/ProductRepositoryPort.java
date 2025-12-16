@@ -8,16 +8,13 @@ import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.web.dto.ProductSummaryDTO;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepositoryPort {
-    Product save(NewProduct product);
+    Product save(Product product);
     Page<ProductSummaryDTO> findAll(int page, int size);
-    ProductEntity findById(Long id);
-    ProductEntity update(ProductEntity productEntity);
+    Optional<Product> findById(Long id);
     void setInactiveById(Long id);
-    boolean existsByBrandAndLine(String brand, String lines);
-    boolean existsByBrandAndLineAndIdNot(String brand, String lines, Long id);
-    List<DecantPriceEntity> findAllByProductId(Long productId);
 
     boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMl(String brand, String line,String concentration, Integer unitVolumeMl);
     boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(String brand, String line, String concentration,Integer unitVolumeMl, Long id);

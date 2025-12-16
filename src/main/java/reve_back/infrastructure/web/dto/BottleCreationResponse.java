@@ -3,8 +3,7 @@ package reve_back.infrastructure.web.dto;
 public record BottleCreationResponse(
         Long id,
         String barcode,
-//        Long branchId,
-        String branchName,
+        String warehouse,
         Integer volumeMl,
         Integer remainingVolumeMl,
         Integer quantity,

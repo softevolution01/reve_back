@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.ProductRepositoryPort;
 import reve_back.domain.model.DecantPrice;
@@ -13,9 +14,11 @@ import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.persistence.jpa.SpringDataDecantPriceRepository;
 import reve_back.infrastructure.persistence.jpa.SpringDataProductRepository;
+import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
 import reve_back.infrastructure.web.dto.ProductSummaryDTO;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -23,90 +26,59 @@ import java.util.stream.Collectors;
 public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
 
     private final SpringDataProductRepository springDataProductRepository;
-    private final SpringDataDecantPriceRepository springDataDecantPriceRepository;
+    private final PersistenceMapper mapper;
 
     @Override
-    public Product save(NewProduct product) {
-        ProductEntity entity = new ProductEntity();
-
-        entity.setBrand(product.brand());
-        entity.setLine(product.line());
-        entity.setConcentration(product.concentration());
-        entity.setPrice(product.price());
-        entity.set_active(true);
-        entity.setVolumeProductsMl(product.unitVolumeMl());
-        entity.setCreatedAt(java.time.LocalDateTime.now());
-        entity.setUpdatedAt(java.time.LocalDateTime.now());
-
+    public Product save(Product product) {
+        ProductEntity entity = mapper.toEntity(product);
         ProductEntity savedEntity = springDataProductRepository.save(entity);
-
-
-        return new Product(
-                savedEntity.getId(),
-                savedEntity.getBrand(),
-                savedEntity.getLine(),
-                savedEntity.getConcentration(),
-                savedEntity.getPrice());
+        return mapper.toDomain(savedEntity);
     }
 
     @Override
     public Page<ProductSummaryDTO> findAll(int page, int size) {
+        // 1. Creamos el objeto de paginación
+        Pageable pageable = PageRequest.of(page, size);
 
-        Page<ProductEntity> productPage = springDataProductRepository.findByIsActiveTrue(PageRequest.of(page, size));
+        // 2. Usamos el método que ya tienes en tu SpringDataProductRepository
+        Page<ProductEntity> productPage = springDataProductRepository.findByIsActiveTrue(pageable);
 
+        // 3. Mapeamos de Entity a el DTO de resumen (Summary)
         List<ProductSummaryDTO> items = productPage.getContent().stream()
                 .map(entity -> new ProductSummaryDTO(
                         entity.getId(),
                         entity.getBrand(),
                         entity.getLine(),
                         entity.getConcentration(),
-                        entity.getPrice(),
+                        entity.getPrice(), // BigDecimal
                         entity.getVolumeProductsMl()))
-                .collect(Collectors.toList());
+                .toList();
 
-        return new PageImpl<>(items, PageRequest.of(page, size), productPage.getTotalElements());
+        // 4. Devolvemos una nueva página con los DTOs
+        return new PageImpl<>(items, pageable, productPage.getTotalElements());
     }
 
     @Override
-    public ProductEntity findById(Long id) {
+    public Optional<Product> findById(Long id) {
         return springDataProductRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-    }
-
-    @Override
-    public ProductEntity update(ProductEntity productEntity) {
-        return springDataProductRepository.save(productEntity);
+                .map(mapper::toDomain);
     }
 
     @Override
     public void setInactiveById(Long id) {
-        ProductEntity productEntity = findById(id);
-        productEntity.set_active(false);
-        springDataProductRepository.save(productEntity);
+        springDataProductRepository.findById(id).ifPresent(entity -> {
+            entity.set_active(false);
+            springDataProductRepository.save(entity);
+        });
     }
 
     @Override
-    public boolean existsByBrandAndLine(String brand, String lines) {
-        return springDataProductRepository.existsByBrandAndLine(brand, lines);
+    public boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMl(String brand, String line, String concentration, Integer unitVolumeMl) {
+        return springDataProductRepository.existsByBrandIgnoreCaseAndLineIgnoreCaseAndConcentrationIgnoreCaseAndVolumeProductsMl(brand, line, concentration, unitVolumeMl);
     }
 
     @Override
-    public boolean existsByBrandAndLineAndIdNot(String brand, String lines, Long id) {
-        return springDataProductRepository.existsByBrandAndLineAndIdNot(brand, lines, id);
-    }
-
-    @Override
-    public List<DecantPriceEntity> findAllByProductId(Long productId) {
-        return springDataDecantPriceRepository.findByProductId(productId);
-    }
-
-    @Override
-    public boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMl(String brand, String line,String concentration, Integer unitVolumeMl) {
-        return springDataProductRepository.existsByBrandAndLineAndConcentrationAndVolumeProductsMl(brand, line,concentration, unitVolumeMl);
-    }
-
-    @Override
-    public boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(String brand, String line,String concentration, Integer unitVolumeMl, Long id) {
-        return springDataProductRepository.existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(brand, line,concentration, unitVolumeMl, id);
+    public boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(String brand, String line, String concentration, Integer unitVolumeMl, Long id) {
+        return springDataProductRepository.existsByBrandIgnoreCaseAndLineIgnoreCaseAndConcentrationIgnoreCaseAndVolumeProductsMlAndIdNot(brand, line, concentration, unitVolumeMl, id);
     }
 }

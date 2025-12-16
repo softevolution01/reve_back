@@ -5,8 +5,8 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 public record BottleCreationRequest(
 //        String barcode,
-        @NotNull(message = "La sucursal (branchId) es obligatoria")
-        Long branchId,
+        @NotNull(message = "El almacen (warehouseId) es obligatorio")
+        Long warehouseId,
         @PositiveOrZero(message = "volumeMl debe ser mayor o igual a 0")
         Integer volumeMl,
         @PositiveOrZero(message = "remainingVolumeMl debe ser mayor o igual a 0")

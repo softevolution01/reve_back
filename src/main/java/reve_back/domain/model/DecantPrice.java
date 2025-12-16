@@ -5,6 +5,7 @@ public record DecantPrice(
         Long productId,
         Integer volumeMl,
         Double price,
-        String barcode
+        String barcode,
+        String imageBarcode
 ) {
 }

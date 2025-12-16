@@ -64,12 +64,12 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                 .map(entity -> new Bottle(
                         entity.getId(),
                         entity.getProductId(),
+                        entity.getWarehouse().getId(),
                         entity.getStatus(),
                         entity.getBarcode(),
                         entity.getVolumeMl(),
                         entity.getRemainingVolumeMl(),
-                        entity.getQuantity(),
-                        entity.getWarehouse().getId()))
+                        entity.getQuantity()))
                 .collect(Collectors.toList());
     }
 
@@ -80,12 +80,12 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                 .map(entity -> new Bottle(
                         entity.getId(),
                         entity.getProductId(),
+                        entity.getWarehouse().getId(),
                         entity.getStatus(),
                         entity.getBarcode(),
                         entity.getVolumeMl(),
                         entity.getRemainingVolumeMl(),
-                        entity.getQuantity(),
-                        entity.getWarehouse().getId()))
+                        entity.getQuantity()))
                 .collect(Collectors.toList());
     }
 
@@ -133,12 +133,12 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                 .map(e -> new Bottle(
                         e.getId(),
                         e.getProductId(),
+                        e.getWarehouse().getId(),
                         e.getStatus(),
                         e.getBarcode(),
                         e.getVolumeMl(),
                         e.getRemainingVolumeMl(),
-                        e.getQuantity(),
-                        e.getWarehouse().getId()
+                        e.getQuantity()
                 ))
                 .toList();
     }
@@ -149,12 +149,12 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                 .map(entity -> new Bottle(
                         entity.getId(),
                         entity.getProductId(),
+                        entity.getWarehouse().getId(),
                         entity.getStatus(),
                         entity.getBarcode(),
                         entity.getVolumeMl(),
                         entity.getRemainingVolumeMl(),
-                        entity.getQuantity(),
-                        entity.getWarehouse().getId()
+                        entity.getQuantity()
                 ));
     }
 }

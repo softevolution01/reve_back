@@ -22,6 +22,7 @@ public class DecantPriceEntity {
     @Column(nullable = false)
     private Double price;
 
-    @Column(unique = true, nullable = false)
     private String barcode;
+    @Column(name = "image_barcode")
+    private String imageBarcode;
 }

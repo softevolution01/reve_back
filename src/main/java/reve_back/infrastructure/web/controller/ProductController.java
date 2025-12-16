@@ -10,6 +10,8 @@ import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.exception.DuplicateProductNameException;
 import reve_back.infrastructure.web.dto.*;
 
+import java.util.Map;
+
 
 @RequiredArgsConstructor
 @RestController
@@ -78,7 +80,12 @@ public class ProductController {
         } catch (DuplicateBarcodeException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
         } catch (RuntimeException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Producto no encontrado con ID: " + id);
+            String message = ex.getMessage();
+
+            if (message.contains("No existe") || message.contains("no encontrado")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", message));
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
         }

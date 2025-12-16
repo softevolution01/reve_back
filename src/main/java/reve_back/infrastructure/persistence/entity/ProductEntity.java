@@ -33,8 +33,8 @@ public class ProductEntity {
     @Column(name = "volume_products_ml", nullable = false)
     private Integer volumeProductsMl;
 
-    @Column(nullable = false, columnDefinition = "boolean default true")
-    private boolean is_active;
+    @Column(name = "is_active")
+    private boolean is_active = true;
 
     @Column(name = "created_at")
     @CreationTimestamp

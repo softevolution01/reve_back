@@ -18,6 +18,73 @@ public class PersistenceMapper {
         );
     }
 
+    public Warehouse toDomain(WarehouseEntity entity) {
+        if (entity == null) return null;
+        return new Warehouse(
+                entity.getId(),
+                entity.getName(),
+                entity.getLocation(),
+                null
+        );
+    }
+
+    public WarehouseEntity toEntity(Warehouse domain) {
+        if (domain == null) return null;
+        WarehouseEntity entity = new WarehouseEntity();
+        entity.setId(domain.id());
+        entity.setName(domain.name());
+        entity.setLocation(domain.location());
+        return entity;
+    }
+
+    public Product toDomain(ProductEntity entity) {
+        if (entity == null) return null;
+        return new Product(
+                entity.getId(),
+                entity.getBrand(),
+                entity.getPrice(),
+                entity.getLine(),
+                entity.getConcentration(),
+                entity.getVolumeProductsMl(),
+                entity.is_active(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
+        );
+    }
+
+    public ProductEntity toEntity(Product domain) {
+        if (domain == null) return null;
+        ProductEntity entity = new ProductEntity();
+        entity.setId(domain.id());
+        entity.setBrand(domain.brand());
+        entity.setPrice(domain.price());
+        entity.setLine(domain.line());
+        entity.setConcentration(domain.concentration());
+        entity.setVolumeProductsMl(domain.volumeProductsMl());
+        entity.set_active(domain.isActive());
+        // createdAt y updatedAt no se setean manualmente, los maneja Hibernate
+        return entity;
+    }
+
+
+    public DecantPrice toDomain(DecantPriceEntity entity) {
+        if (entity == null) return null;
+        return new DecantPrice(entity.getId(), entity.getProductId(), entity.getVolumeMl(),
+                entity.getPrice(), entity.getBarcode(), entity.getImageBarcode());
+    }
+
+    public DecantPriceEntity toEntity(DecantPrice domain) {
+        if (domain == null) return null;
+        DecantPriceEntity entity = new DecantPriceEntity();
+        entity.setId(domain.id());
+        entity.setProductId(domain.productId());
+        entity.setVolumeMl(domain.volumeMl());
+        entity.setPrice(domain.price());
+        entity.setBarcode(domain.barcode());
+        entity.setImageBarcode(domain.imageBarcode());
+        return entity;
+    }
+
     public Permission toDomain(PermissionEntity entity){
         return new Permission(entity.getId(),entity.getName());
     }

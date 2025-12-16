@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DecantPriceRepositoryPort {
-    List<DecantPrice> saveAllForProduct(Long productId, List<DecantRequest> decants);
-    List<DecantPriceEntity> findAllByProductId(Long productId);
+    List<DecantPrice> saveAllForProduct(Long productId, List<DecantPrice> decants);
+
+    List<DecantPrice> findAllByProductId(Long productId);
+
     Optional<DecantPrice> findByBarcode(String barcode);
 
 }
