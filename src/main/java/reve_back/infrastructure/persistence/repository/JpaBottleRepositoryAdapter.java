@@ -12,6 +12,7 @@ import reve_back.infrastructure.util.BarcodeGenerator;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -140,5 +141,20 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         e.getWarehouse().getId()
                 ))
                 .toList();
+    }
+
+    @Override
+    public Optional<Bottle> findByBarcodeAndStatus(String barcode, String status) {
+        return springDataBottleRepository.findByBarcodeAndStatus(barcode, status)
+                .map(entity -> new Bottle(
+                        entity.getId(),
+                        entity.getProductId(),
+                        entity.getStatus(),
+                        entity.getBarcode(),
+                        entity.getVolumeMl(),
+                        entity.getRemainingVolumeMl(),
+                        entity.getQuantity(),
+                        entity.getWarehouse().getId()
+                ));
     }
 }

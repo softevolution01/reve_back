@@ -5,9 +5,11 @@ import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.web.dto.DecantRequest;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface DecantPriceRepositoryPort {
     List<DecantPrice> saveAllForProduct(Long productId, List<DecantRequest> decants);
     List<DecantPriceEntity> findAllByProductId(Long productId);
+    Optional<DecantPrice> findByBarcode(String barcode);
 
 }

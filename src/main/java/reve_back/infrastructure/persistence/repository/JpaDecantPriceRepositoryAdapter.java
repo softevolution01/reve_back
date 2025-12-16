@@ -11,6 +11,7 @@ import reve_back.infrastructure.web.dto.DecantRequest;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 @RequiredArgsConstructor
@@ -39,12 +40,24 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
         List<DecantPriceEntity> saved = repository.saveAll(entities);
 
         return saved.stream()
-                .map(e -> new DecantPrice(e.getId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
+                .map(e -> new DecantPrice(e.getId(), e.getProductId(), e.getVolumeMl(), e.getPrice(), e.getBarcode()))
                 .toList();
     }
 
     @Override
     public List<DecantPriceEntity> findAllByProductId(Long productId) {
         return repository.findByProductId(productId);
+    }
+
+    @Override
+    public Optional<DecantPrice> findByBarcode(String barcode) {
+        return repository.findByBarcode(barcode)
+                .map(e -> new DecantPrice(
+                        e.getId(),
+                        e.getProductId(),
+                        e.getVolumeMl(),
+                        e.getPrice(),
+                        e.getBarcode()
+                ));
     }
 }

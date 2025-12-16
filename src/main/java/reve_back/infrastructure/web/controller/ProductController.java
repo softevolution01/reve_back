@@ -13,7 +13,7 @@ import reve_back.infrastructure.web.dto.*;
 
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("api/products")
+@RequestMapping("/products")
 public class ProductController {
 
     private final ListProductsUseCase listProductsUseCase;
@@ -21,6 +21,7 @@ public class ProductController {
     private final CreateProductUseCase createProductUseCase;
     private final UpdateProductUseCase updateProductUseCase;
     private final DeleteProductUseCase deleteProductUseCase;
+    private final ScanBarcodeUseCase scanBarcodeUseCase;
 
     @GetMapping
     @PreAuthorize("hasAuthority('catalog:read:all')")
@@ -97,6 +98,12 @@ public class ProductController {
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error inesperado: " + ex.getMessage());
         }
+    }
+
+    @GetMapping("/barcode/{barcode}")
+    @PreAuthorize("hasAuthority('sales:create:client')")
+    public ResponseEntity<ScanBarcodeResponse> scanProduct(@PathVariable String barcode) {
+        return ResponseEntity.ok(scanBarcodeUseCase.scanBarcode(barcode));
     }
 
 }
