@@ -8,6 +8,7 @@ import reve_back.infrastructure.persistence.entity.BottleEntity;
 import reve_back.infrastructure.persistence.entity.WarehouseEntity;
 import reve_back.infrastructure.persistence.jpa.SpringDataBottleRepository;
 import reve_back.infrastructure.persistence.jpa.SpringDataWarehouseRepository;
+import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
 import reve_back.infrastructure.util.BarcodeGenerator;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
 
     private final SpringDataBottleRepository springDataBottleRepository;
     private final SpringDataWarehouseRepository springDataWarehouseRepository;
+    private final PersistenceMapper mapper;
 
     @Override
     public List<Bottle> saveAll(List<Bottle> bottles) {
@@ -156,5 +158,20 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                         entity.getRemainingVolumeMl(),
                         entity.getQuantity()
                 ));
+    }
+
+    @Override
+    public Optional<Bottle> findById(Long id) {
+        // 1. Buscamos en la DB (devuelve BottleEntity)
+        // 2. Usamos el mapper para convertirlo a Bottle (Domain)
+        return springDataBottleRepository.findById(id)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Bottle save(Bottle bottle) {
+        BottleEntity entity = mapper.toEntity(bottle);
+        BottleEntity saved = springDataBottleRepository.save(entity);
+        return mapper.toDomain(saved);
     }
 }

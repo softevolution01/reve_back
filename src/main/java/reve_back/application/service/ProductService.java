@@ -65,7 +65,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         warehouse.id(),
                         BottlesStatus.AGOTADA.getValue(),
                         BarcodeGenerator.generateAlphanumeric(12),
-                        request.unitVolumeMl(),
+                        0,
                         0,
                         0
 
@@ -77,7 +77,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         warehouse.id(),
                         BottlesStatus.DECANT_AGOTADA.getValue(),
                         null,
-                        request.unitVolumeMl(),
+                        0,
                         0,
                         0
                 ));

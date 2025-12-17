@@ -1,5 +1,7 @@
 package reve_back.infrastructure.persistence.mapper;
 
+import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.*;
@@ -8,6 +10,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class PersistenceMapper {
 
     public Branch toDomain(BranchEntity entity) {
@@ -82,6 +85,80 @@ public class PersistenceMapper {
         entity.setPrice(domain.price());
         entity.setBarcode(domain.barcode());
         entity.setImageBarcode(domain.imageBarcode());
+        return entity;
+    }
+
+    public InventoryMovement toDomain(InventoryMovementEntity entity) {
+        if (entity == null) return null;
+
+        return new InventoryMovement(
+                entity.getId(),
+                entity.getBottleId(),
+                entity.getQuantity(),
+                entity.getType().name(), // Convierte el Enum INGRESO/EGRESO a String
+                entity.getUnit(),
+                entity.getReason(),
+                entity.getUserId(),
+                entity.getCreatedAt()
+        );
+    }
+
+    public InventoryMovementEntity toEntity(InventoryMovement domain) {
+        if (domain == null) return null;
+
+        InventoryMovementEntity entity = new InventoryMovementEntity();
+        entity.setId(domain.id());
+        entity.setBottleId(domain.bottleId());
+        entity.setQuantity(domain.quantity());
+
+        // Convertimos el String del dominio al Enum de la entidad
+        if (domain.type() != null) {
+            entity.setType(MovementType.valueOf(domain.type().toUpperCase()));
+        }
+
+        entity.setReason(domain.reason());
+        entity.setUserId(domain.userId());
+        // El campo createdAt no se setea, lo maneja @CreationTimestamp de Hibernate
+
+        return entity;
+    }
+
+    private final EntityManager entityManager;
+
+    public Bottle toDomain(BottleEntity entity) {
+        if (entity == null) return null;
+        return new Bottle(
+                entity.getId(),
+                entity.getProductId(),
+                entity.getWarehouse().getId(), // Extraemos solo el ID del objeto Warehouse
+                entity.getStatus(),
+                entity.getBarcode(),
+                entity.getVolumeMl(),
+                entity.getRemainingVolumeMl(),
+                entity.getQuantity()
+        );
+    }
+
+    public BottleEntity toEntity(Bottle domain) {
+        if (domain == null) return null;
+
+        BottleEntity entity = new BottleEntity();
+        entity.setId(domain.id());
+        entity.setProductId(domain.productId());
+
+        // RESOLUCIÓN DEL CONFLICTO:
+        // No buscamos el warehouse en la DB, solo creamos una referencia con el ID.
+        if (domain.warehouseId() != null) {
+            WarehouseEntity warehouse = entityManager.getReference(WarehouseEntity.class, domain.warehouseId());
+            entity.setWarehouse(warehouse);
+        }
+
+        entity.setStatus(domain.status());
+        entity.setBarcode(domain.barcode());
+        entity.setVolumeMl(domain.volumeMl());
+        entity.setRemainingVolumeMl(domain.remainingVolumeMl());
+        entity.setQuantity(domain.quantity());
+
         return entity;
     }
 

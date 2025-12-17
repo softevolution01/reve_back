@@ -1,5 +1,6 @@
 package reve_back.application.ports.out;
 
+import jakarta.validation.constraints.NotNull;
 import reve_back.domain.model.Bottle;
 
 import java.util.List;
@@ -10,4 +11,7 @@ public interface BottleRepositoryPort {
     List<Bottle> findAllByProductId(Long productId);
     List<Bottle> updateAll(List<Bottle> bottles);
     Optional<Bottle> findByBarcodeAndStatus(String barcode, String status);
+    Optional<Bottle> findById(Long id);
+    Bottle save(Bottle bottle);
+
 }

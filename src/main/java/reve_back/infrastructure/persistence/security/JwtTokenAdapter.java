@@ -53,6 +53,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
         claims.put("branches", branchObjects);
 
         claims.put("fullname", user.fullname());
+        claims.put("id", user.id());
         claims.put("email", user.email());
 
         return Jwts.builder()
@@ -130,6 +131,7 @@ public class JwtTokenAdapter implements JwtTokenPort {
 
             claims.put("branches", branchObjects);
             claims.put("fullname", user.fullname());
+            claims.put("id", user.id());
             claims.put("email", user.email());
         }
 
