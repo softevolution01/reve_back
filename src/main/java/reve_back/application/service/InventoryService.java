@@ -132,11 +132,4 @@ public class InventoryService implements InventoryMovementUseCase {
 
         movementRepository.save(history);
     }
-
-    @Override
-    public List<InventoryMovement> getMovementHistory(Long bottleId) {
-        return movementRepository.findByBottleIdOrderByCreatedAtDesc(bottleId).stream()
-                .map(mapper::toDomain)
-                .toList();
-    }
 }
