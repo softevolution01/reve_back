@@ -79,7 +79,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         null,
                         request.unitVolumeMl(),
                         0,
-                        1
+                        0
                 ));
             }
         } else {
