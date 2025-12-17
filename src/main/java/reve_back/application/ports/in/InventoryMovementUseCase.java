@@ -9,5 +9,4 @@ public interface InventoryMovementUseCase {
 
     void processMovement(QuickMovementRequest request);
 
-    List<InventoryMovement> getMovementHistory(Long bottleId);
 }

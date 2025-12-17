@@ -18,10 +18,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class InventoryController {
 
-    private final InventoryMovementUseCase inventoryUseCase; // Inyectamos la Interfaz
+    private final InventoryMovementUseCase inventoryUseCase;
 
     @PostMapping("/movement")
-    @PreAuthorize("hasAuthority('catalog:edit')")
+    @PreAuthorize("hasAuthority('inventory:edit:quantity')")
     public ResponseEntity<?> createMovement(@Valid @RequestBody QuickMovementRequest request) {
         try {
             inventoryUseCase.processMovement(request);
@@ -30,11 +30,5 @@ public class InventoryController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", ex.getMessage()));
         }
-    }
-
-    @GetMapping("/history/{bottleId}")
-    @PreAuthorize("hasAuthority('inventory:view')")
-    public ResponseEntity<List<InventoryMovement>> getHistory(@PathVariable Long bottleId) {
-        return ResponseEntity.ok(inventoryUseCase.getMovementHistory(bottleId));
     }
 }
