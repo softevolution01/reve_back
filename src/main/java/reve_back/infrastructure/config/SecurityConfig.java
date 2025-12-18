@@ -37,6 +37,7 @@ public class SecurityConfig {
 
     private static final String[] WHITE_LIST_URLS = {
             "/auth/**",     // Todos los endpoints de /auth (login, register)
+            "/error",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**"
