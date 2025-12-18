@@ -5,14 +5,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.CreateClientUseCase;
 import reve_back.application.ports.in.GetClientPointsUseCase;
+import reve_back.application.ports.in.GetLoyaltyStatusUseCase;
 import reve_back.application.ports.in.SearchClientUseCase;
 import reve_back.application.ports.out.ClientRepositoryPort;
+import reve_back.application.ports.out.LoyaltyProgressRepositoryPort;
+import reve_back.application.ports.out.LoyaltyTiersRepositoryPort;
 import reve_back.application.ports.out.SalesRepositoryPort;
 import reve_back.domain.model.Client;
+import reve_back.domain.model.ClientLoyaltyProgress;
 import reve_back.infrastructure.mapper.ClientDtoMapper;
 import reve_back.infrastructure.web.dto.ClientCreationRequest;
 import reve_back.infrastructure.web.dto.ClientPointsResponse;
 import reve_back.infrastructure.web.dto.ClientResponse;
+import reve_back.infrastructure.web.dto.LoyaltyResponse;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,12 +26,14 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @Service
-public class ClientService implements SearchClientUseCase, CreateClientUseCase, GetClientPointsUseCase {
+public class ClientService implements SearchClientUseCase, CreateClientUseCase, GetClientPointsUseCase, GetLoyaltyStatusUseCase {
 
 
     private final ClientRepositoryPort clientRepositoryPort;
     private final SalesRepositoryPort salesRepositoryPort;
     private final ClientDtoMapper clientDtoMapper;
+    private final LoyaltyProgressRepositoryPort loyaltyProgressRepositoryPort;
+    private final LoyaltyTiersRepositoryPort loyaltyTierRepositoryPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -113,6 +120,31 @@ public class ClientService implements SearchClientUseCase, CreateClientUseCase, 
                 postVipTotal,
                 cycleAccumulated,
                 cyclesCompleted
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LoyaltyResponse getLoyaltyStatus(Long clientId) {
+        // 1. Validar existencia del cliente
+        ClientLoyaltyProgress progress = loyaltyProgressRepositoryPort.findByClientId(clientId)
+                .orElse(new ClientLoyaltyProgress(clientId, 1, 0, 0.0, LocalDateTime.now()));
+
+        // 2. Llamada a la función solicitada
+        Double costOfNextPoint = loyaltyTierRepositoryPort.findCostByTier(progress.currentTier());
+
+        // 3. Validar si el cliente es VIP desde el repositorio de clientes
+        boolean isVip = clientRepositoryPort.findById(clientId)
+                .map(Client::isVip)
+                .orElse(false);
+
+        return new LoyaltyResponse(
+                clientId,
+                progress.currentTier(),
+                progress.pointsInTier(),
+                progress.accumulatesMoney(),
+                costOfNextPoint,
+                isVip
         );
     }
 }

@@ -111,16 +111,52 @@ public class PersistenceMapper {
         entity.setBottleId(domain.bottleId());
         entity.setQuantity(domain.quantity());
 
-        // Convertimos el String del dominio al Enum de la entidad
         if (domain.type() != null) {
             entity.setType(MovementType.valueOf(domain.type().toUpperCase()));
         }
 
         entity.setReason(domain.reason());
         entity.setUserId(domain.userId());
-        // El campo createdAt no se setea, lo maneja @CreationTimestamp de Hibernate
 
         return entity;
+    }
+
+    public ClientLoyaltyProgress toDomain(ClientLoyaltyProgressEntity entity) {
+        if (entity == null) return null;
+        return new ClientLoyaltyProgress(
+                entity.getClientId(),
+                entity.getCurrentTier(),
+                entity.getPointsInTier(),
+                entity.getAccumulatedMoney(),
+                entity.getUpdatedAt()
+        );
+    }
+
+    public ClientLoyaltyProgressEntity toEntity(ClientLoyaltyProgress domain) {
+        if (domain == null) return null;
+        return ClientLoyaltyProgressEntity.builder()
+                .clientId(domain.clientId())
+                .currentTier(domain.currentTier())
+                .pointsInTier(domain.pointsInTier())
+                .accumulatedMoney(domain.accumulatesMoney())
+                .updatedAt(domain.updateAt())
+                .build();
+    }
+
+    public LoyaltyTiers toDomain(LoyaltyTiersEntity entity){
+        if (entity == null) return null;
+        return new LoyaltyTiers(
+                entity.getTierLevel(),
+                entity.getCostPerPoint()
+        );
+    }
+
+    public LoyaltyTiersEntity toEntity(LoyaltyTiers domain){
+        if (domain == null) return null;
+        return LoyaltyTiersEntity.builder()
+                .tierLevel(domain.tierLevel())
+                .costPerPoint(domain.costPerPoint())
+                .build();
     }
 
     private final EntityManager entityManager;
