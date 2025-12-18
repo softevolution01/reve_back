@@ -132,7 +132,7 @@ public class ProductDtoMapper {
     public ScanBarcodeResponse toScanResponse(Bottle bottle, Product product, Double priceOverride) {
         return new ScanBarcodeResponse(
                 bottle.id(),
-                "Botella",
+                "BOTELLA",
                 product.id(),
                 product.brand(),
                 product.line(),
@@ -144,7 +144,7 @@ public class ProductDtoMapper {
     public ScanBarcodeResponse toScanResponse(DecantPrice decant, Product product) {
         return new ScanBarcodeResponse(
                 decant.id(),
-                "Decant",
+                "DECANT",
                 product.id(),
                 product.brand(),
                 product.line(),

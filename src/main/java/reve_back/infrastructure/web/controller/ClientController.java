@@ -40,15 +40,15 @@ public class ClientController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    @GetMapping("/{clientId}/points")
+    @GetMapping("/{clientId}/point")
     @PreAuthorize("hasAuthority('sales:create:client')")
     public ResponseEntity<ClientPointsResponse> getClientPoints(@PathVariable Long clientId) {
         return ResponseEntity.ok(getClientPointsUseCase.getClientPoints(clientId));
     }
 
-    @GetMapping("/{id}/loyaltyStatus")
+    @GetMapping("/{clientId}/points")
     @PreAuthorize("hasAuthority('sales:create:client')")
-    public ResponseEntity<LoyaltyResponse> getStatus(@PathVariable Long id) {
-        return ResponseEntity.ok(getLoyaltyStatusUseCase.getLoyaltyStatus(id));
+    public ResponseEntity<LoyaltyResponse> getStatus(@PathVariable Long clientId) {
+        return ResponseEntity.ok(getLoyaltyStatusUseCase.getLoyaltyStatus(clientId));
     }
 }

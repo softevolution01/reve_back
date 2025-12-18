@@ -279,22 +279,28 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
     @Override
     public ScanBarcodeResponse scanBarcode(String barcode) {
-        // Buscar en botellas
-        Optional<Bottle> bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, "sellada");
+        var decantOpt = decantPriceRepositoryPort.findByBarcode(barcode);
+
+        if (decantOpt.isPresent()) {
+            var decant = decantOpt.get();
+            var product = getProductOrThrow(decant.productId());
+
+            return productDtoMapper.toScanResponse(decant, product);
+        }
+        var bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, "sellada");
+
         if (bottleOpt.isPresent()) {
-            Bottle b = bottleOpt.get();
-            Product p = productRepositoryPort.findById(b.productId())
-                    .orElseThrow(() -> new RuntimeException("Producto huérfano"));
-            return productDtoMapper.toScanResponse(b, p, p.price());
+            var bottle = bottleOpt.get();
+            var product = getProductOrThrow(bottle.productId());
+
+            return productDtoMapper.toScanResponse(bottle, product, product.price().doubleValue());
         }
 
-        // Buscar en decants
-        return decantPriceRepositoryPort.findByBarcode(barcode)
-                .map(d -> {
-                    Product p = productRepositoryPort.findById(d.productId())
-                            .orElseThrow(() -> new RuntimeException("Producto huérfano"));
-                    return productDtoMapper.toScanResponse(d, p);
-                })
-                .orElseThrow(() -> new RuntimeException("Código no reconocido: " + barcode));
+        throw new RuntimeException("Código de barras no encontrado: " + barcode);
+    }
+
+    private Product getProductOrThrow(Long productId) {
+        return productRepositoryPort.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Inconsistencia: Producto no encontrado para ID " + productId));
     }
 }
