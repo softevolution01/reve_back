@@ -22,8 +22,9 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
     public List<Bottle> saveAll(List<Bottle> bottles) {
         List<BottleEntity> entities = bottles.stream()
                 .map(bottle -> new BottleEntity(
-                        null,
+                        bottle.id(),
                         bottle.productId(),
+                        bottle.warehouseId() != null ? bottle.warehouseId() : 1L,
                         bottle.status(),
                         bottle.barcode(),
                         bottle.volumeMl(),
@@ -37,31 +38,14 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
 
         List<BottleEntity> savedEntities = springDataBottleRepository.saveAll(entities);
         return savedEntities.stream()
-                .map(entity -> new Bottle(
-                        entity.getId(),
-                        entity.getProductId(),
-                        entity.getStatus(),
-                        entity.getBarcode(),
-                        entity.getVolumeMl(),
-                        entity.getRemainingVolumeMl(),
-                        entity.getQuantity(),
-                        entity.getBranchId()))
+                .map(this::toDomain)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<Bottle> findAllByProductId(Long productId) {
-        List<BottleEntity> bottleEntities = springDataBottleRepository.findByProductId(productId);
-        return bottleEntities.stream()
-                .map(entity -> new Bottle(
-                        entity.getId(),
-                        entity.getProductId(),
-                        entity.getStatus(),
-                        entity.getBarcode(),
-                        entity.getVolumeMl(),
-                        entity.getRemainingVolumeMl(),
-                        entity.getQuantity(),
-                        entity.getBranchId()))
+        return springDataBottleRepository.findByProductId(productId).stream()
+                .map(this::toDomain)
                 .collect(Collectors.toList());
     }
 
@@ -93,32 +77,53 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
 
         List<BottleEntity> saved = springDataBottleRepository.saveAllAndFlush(entities);
 
-        return saved.stream()
-                .map(e -> new Bottle(
-                        e.getId(),
-                        e.getProductId(),
-                        e.getStatus(),
-                        e.getBarcode(),
-                        e.getVolumeMl(),
-                        e.getRemainingVolumeMl(),
-                        e.getQuantity(),
-                        e.getBranchId()
-                ))
+        return springDataBottleRepository.saveAllAndFlush(entities).stream()
+                .map(this::toDomain)
                 .toList();
     }
 
     @Override
     public Optional<Bottle> findByBarcodeAndStatus(String barcode, String status) {
         return springDataBottleRepository.findByBarcodeAndStatus(barcode, status)
-                .map(entity -> new Bottle(
-                        entity.getId(),
-                        entity.getProductId(),
-                        entity.getStatus(),
-                        entity.getBarcode(),
-                        entity.getVolumeMl(),
-                        entity.getRemainingVolumeMl(),
-                        entity.getQuantity(),
-                        entity.getBranchId()
-                ));
+                .map(this::toDomain);
+    }
+
+    @Override
+    public Optional<Bottle> findById(Long id) {
+        return springDataBottleRepository.findById(id)
+                .map(this::toDomain);
+    }
+
+    @Override
+    public Bottle save(Bottle bottle) {
+        // Reutilizamos la lógica de mapeo que ya tenías en saveAll pero para uno solo
+        BottleEntity entity = new BottleEntity(
+                bottle.id(),
+                bottle.productId(),
+                bottle.warehouseId() != null ? bottle.warehouseId() : 1L,
+                bottle.status(),
+                bottle.barcode(),
+                bottle.volumeMl(),
+                bottle.remainingVolumeMl(),
+                bottle.quantity(),
+                bottle.branchId(),
+                null, null
+        );
+
+        return toDomain(springDataBottleRepository.save(entity));
+    }
+
+    private Bottle toDomain(BottleEntity e) {
+        return new Bottle(
+                e.getId(),
+                e.getProductId(),
+                e.getStatus(),
+                e.getBarcode(),
+                e.getVolumeMl(),
+                e.getRemainingVolumeMl(),
+                e.getQuantity(),
+                e.getBranchId(),
+                e.getWarehouseId()
+        );
     }
 }

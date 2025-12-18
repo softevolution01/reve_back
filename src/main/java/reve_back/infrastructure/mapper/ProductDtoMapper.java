@@ -90,7 +90,8 @@ public class ProductDtoMapper {
                 req.volumeMl(),
                 req.remainingVolumeMl(),
                 req.quantity(),
-                req.branchId()
+                req.branchId(),
+                1L
         );
     }
 

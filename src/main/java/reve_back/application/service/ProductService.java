@@ -61,7 +61,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             BottlesStatus.AGOTADA.getValue(),
                             BarcodeGenerator.generateAlphanumeric(12),
                             0, 0, 0,
-                            branch.id()
+                            branch.id(),
+                            1L
                     ))
                     .collect(Collectors.toList());
         } else {
@@ -242,7 +243,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         req.volumeMl() != null ? req.volumeMl() : existing.volumeMl(),
                         req.remainingVolumeMl() != null ? req.remainingVolumeMl() : existing.remainingVolumeMl(),
                         req.quantity() != null ? req.quantity() : existing.quantity(),
-                        req.branchId()
+                        req.branchId(),
+                        1L
                 ));
             } else {
                 // Crear nueva (Usamos el mapper para generar el barcode y estructura base)
@@ -261,7 +263,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                         newBottleBase.volumeMl() != null ? newBottleBase.volumeMl() : 100,
                         newBottleBase.remainingVolumeMl() != null ? newBottleBase.remainingVolumeMl() : 100,
                         newBottleBase.quantity() != null ? newBottleBase.quantity() : 1,
-                        req.branchId()
+                        req.branchId(),
+                        1L
                 ));
             }
         }

@@ -11,5 +11,6 @@ public interface DecantPriceRepositoryPort {
     List<DecantPrice> saveAllForProduct(Long productId, List<DecantRequest> decants);
     List<DecantPriceEntity> findAllByProductId(Long productId);
     Optional<DecantPrice> findByBarcode(String barcode);
+    Optional<DecantPrice> findById(Long id);
 
 }

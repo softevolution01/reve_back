@@ -23,6 +23,9 @@ public class BottleEntity {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
+    @Column(name = "warehouse_id", nullable = false)
+    private Long warehouseId;
+
     private String status;
 
     private String barcode;

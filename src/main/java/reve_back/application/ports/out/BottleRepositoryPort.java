@@ -10,4 +10,7 @@ public interface BottleRepositoryPort {
     List<Bottle> findAllByProductId(Long productId);
     List<Bottle> updateAll(List<Bottle> bottles);
     Optional<Bottle> findByBarcodeAndStatus(String barcode, String status);
+
+    Optional<Bottle> findById(Long id);
+    Bottle save(Bottle bottle);
 }

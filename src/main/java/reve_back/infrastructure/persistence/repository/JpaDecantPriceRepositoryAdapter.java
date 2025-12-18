@@ -60,4 +60,16 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
                         e.getBarcode()
                 ));
     }
+
+    @Override
+    public Optional<DecantPrice> findById(Long id) {
+        return repository.findById(id)
+                .map(e -> new DecantPrice(
+                        e.getId(),
+                        e.getProductId(),
+                        e.getVolumeMl(),
+                        e.getPrice(),
+                        e.getBarcode()
+                ));
+    }
 }
