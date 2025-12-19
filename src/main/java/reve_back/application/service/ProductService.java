@@ -322,6 +322,10 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         if (bottleOpt.isPresent()) {
             Bottle bottle = bottleOpt.get();
 
+            if (bottle.quantity() <= 0) {
+                throw new RuntimeException("Stock agotado: La botella sellada no tiene unidades disponibles.");
+            }
+
             // Obtenemos info del producto padre (Marca, Línea)
             ProductEntity productEntity = productRepositoryPort.findById(bottle.productId());
 
@@ -344,6 +348,10 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         if (decantOpt.isPresent()) {
             DecantPrice decant = decantOpt.get();
 
+            if (!tieneStockDisponibleParaDecantar(decant.productId())) {
+                throw new RuntimeException("Stock agotado: No hay fragancia disponible (ni abierta ni sellada) para este decant.");
+            }
+
             ProductEntity productEntity = productRepositoryPort.findById(decant.productId());
 
             Product product = new Product(
@@ -354,10 +362,18 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                     productEntity.getPrice()
             );
 
-            // "La venta se realiza contra el decant_prices.id" -> idInventario = decant.id
             return mapper.toScanResponse(decant, product);
         }
 
         throw new RuntimeException("Producto no encontrado con código de barras: " + barcode);
+    }
+
+    private boolean tieneStockDisponibleParaDecantar(Long productId) {
+        List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(productId);
+
+        return bottles.stream().anyMatch(b ->
+                ("decantada".equalsIgnoreCase(b.status()) && b.remainingVolumeMl() > 0) ||
+                        ("sellada".equalsIgnoreCase(b.status()) && b.quantity() > 0)
+        );
     }
 }

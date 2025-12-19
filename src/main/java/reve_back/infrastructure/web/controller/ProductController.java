@@ -106,4 +106,15 @@ public class ProductController {
         return ResponseEntity.ok(scanBarcodeUseCase.scanBarcode(barcode));
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntime(RuntimeException ex) {
+        if (ex.getMessage().contains("Stock agotado")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+        }
+        if (ex.getMessage().contains("no encontrado")) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error interno: " + ex.getMessage());
+    }
+
 }
