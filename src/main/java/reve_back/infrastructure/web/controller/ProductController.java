@@ -10,6 +10,7 @@ import reve_back.domain.exception.DuplicateBarcodeException;
 import reve_back.domain.exception.DuplicateProductNameException;
 import reve_back.infrastructure.web.dto.*;
 
+import java.util.List;
 import java.util.Map;
 
 
@@ -24,6 +25,7 @@ public class ProductController {
     private final UpdateProductUseCase updateProductUseCase;
     private final DeleteProductUseCase deleteProductUseCase;
     private final ScanBarcodeUseCase scanBarcodeUseCase;
+    private final SearchProductsUseCase searchProductsUseCase;
 
     @GetMapping
     @PreAuthorize("hasAuthority('catalog:read:all')")
@@ -112,5 +114,15 @@ public class ProductController {
     public ResponseEntity<ScanBarcodeResponse> scanProduct(@PathVariable String barcode) {
         return ResponseEntity.ok(scanBarcodeUseCase.scanBarcode(barcode));
     }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAuthority('sales:create:client')")
+    public ResponseEntity<List<ProductSearchResponse>> searchProducts(
+            @RequestParam("query") String query
+    ) {
+        return ResponseEntity.ok(searchProductsUseCase.searchProducts(query));
+    }
+
+
 
 }

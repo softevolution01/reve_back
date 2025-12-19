@@ -22,7 +22,7 @@ import static reve_back.domain.model.BottlesStatus.DECANT_AGOTADA;
 @RequiredArgsConstructor
 @Service
 public class ProductService implements ListProductsUseCase, CreateProductUseCase,
-        GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase, ScanBarcodeUseCase {
+        GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase, ScanBarcodeUseCase, SearchProductsUseCase {
 
 
     private final ProductRepositoryPort productRepositoryPort;
@@ -301,5 +301,26 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     private Product getProductOrThrow(Long productId) {
         return productRepositoryPort.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Inconsistencia: Producto no encontrado para ID " + productId));
+    }
+
+    @Override
+    public List<ProductSearchResponse> searchProducts(String term) {
+        List<ProductSearchResponse> results = new ArrayList<>();
+
+        // 1. Botellas
+        List<Bottle> bottles = bottleRepositoryPort.searchActiveByProductName(term);
+        for (Bottle b : bottles) {
+            var p = productRepositoryPort.findById(b.productId()).orElseThrow();
+            results.add(productDtoMapper.toSearchResponse(b, p));
+        }
+
+        // 2. Decants
+        List<DecantPrice> decants = decantPriceRepositoryPort.searchActiveByProductName(term);
+        for (DecantPrice d : decants) {
+            var p = productRepositoryPort.findById(d.productId()).orElseThrow();
+            results.add(productDtoMapper.toSearchResponse(d, p));
+        }
+
+        return results;
     }
 }

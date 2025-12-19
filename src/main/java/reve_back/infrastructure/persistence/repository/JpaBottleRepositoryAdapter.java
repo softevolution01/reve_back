@@ -1,6 +1,7 @@
 package reve_back.infrastructure.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.out.BottleRepositoryPort;
@@ -93,5 +94,12 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
         BottleEntity entity = mapper.toEntity(bottle);
         BottleEntity saved = springDataBottleRepository.save(entity);
         return mapper.toDomain(saved);
+    }
+
+    @Override
+    public List<Bottle> searchActiveByProductName(String term) {
+        var pageable = PageRequest.of(0, 5);
+        var entities = springDataBottleRepository.findActiveByProductNameLike(term,pageable);
+        return entities.stream().map(mapper::toDomain).toList();
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import reve_back.infrastructure.persistence.entity.ClientEntity;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -13,7 +14,7 @@ public interface ClientJpaRepository extends JpaRepository<ClientEntity, Long> {
     @Query("SELECT c FROM ClientEntity c WHERE " +
             "LOWER(c.fullname) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "c.dni LIKE CONCAT('%', :query, '%')")
-    List<ClientEntity> searchByFullnameOrDni(@Param("query") String query);
+    List<ClientEntity> searchByFullnameOrDni(@Param("query") String query, Pageable pageable);
 
     boolean existsByDni(String dni);
     boolean existsByEmail(String email);

@@ -15,6 +15,7 @@ import reve_back.infrastructure.util.BarcodeGenerator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 
 @RequiredArgsConstructor
 @Repository
@@ -70,4 +71,15 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
         return repository.findByBarcode(barcode)
                 .map(mapper::toDomain);
     }
+
+    @Override
+    public List<DecantPrice> searchActiveByProductName(String term) {
+        var pageable = PageRequest.of(0, 5);
+
+        var entities = repository.findActiveByProductNameLike(term, pageable);
+
+        return entities.stream().map(mapper::toDomain).toList();
+    }
+
+
 }

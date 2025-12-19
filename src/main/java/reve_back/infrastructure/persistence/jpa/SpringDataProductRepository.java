@@ -4,10 +4,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import reve_back.domain.model.NewProduct;
 import reve_back.domain.model.Product;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
+import reve_back.infrastructure.web.dto.ProductSearchResponse;
+
+import java.util.List;
 
 @RepositoryRestResource(exported = false)
 public interface SpringDataProductRepository extends JpaRepository<ProductEntity,Long> {

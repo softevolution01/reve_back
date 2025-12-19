@@ -7,6 +7,7 @@ import reve_back.domain.model.Client;
 import reve_back.infrastructure.persistence.entity.ClientEntity;
 import reve_back.infrastructure.persistence.jpa.ClientJpaRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +21,8 @@ public class ClientPersistenceAdapter implements ClientRepositoryPort {
 
     @Override
     public List<Client> searchByFullnameOrDni(String query) {
-        return clientJpaRepository.searchByFullnameOrDni(query).stream()
+        var pageable = PageRequest.of(0, 5);
+        return clientJpaRepository.searchByFullnameOrDni(query,pageable).stream()
                 .map(mapper::toDomain)
                 .toList();
     }

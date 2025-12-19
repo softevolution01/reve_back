@@ -13,5 +13,6 @@ public interface BottleRepositoryPort {
     Optional<Bottle> findByBarcodeAndStatus(String barcode, String status);
     Optional<Bottle> findById(Long id);
     Bottle save(Bottle bottle);
+    List<Bottle> searchActiveByProductName(String term);
 
 }

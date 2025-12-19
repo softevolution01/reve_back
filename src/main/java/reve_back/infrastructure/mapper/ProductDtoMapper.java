@@ -154,4 +154,29 @@ public class ProductDtoMapper {
                 decant.price()
         );
     }
+
+    public ProductSearchResponse toSearchResponse(Bottle bottle, Product product) {
+        return new ProductSearchResponse(
+                bottle.id(),
+                "BOTELLA",
+                product.id(),
+                product.brand(),
+                product.line(),
+                bottle.volumeMl(),
+                product.price().doubleValue() // Ojo: Bottle usa el precio del producto base
+        );
+    }
+
+    // NUEVO: Para Decants en la búsqueda
+    public ProductSearchResponse toSearchResponse(DecantPrice decant, Product product) {
+        return new ProductSearchResponse(
+                decant.id(),
+                "DECANT",
+                product.id(),
+                product.brand(),
+                product.line(),
+                decant.volumeMl(),
+                decant.price().doubleValue() // Decant tiene su propio precio
+        );
+    }
 }
