@@ -8,6 +8,8 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDateTime;
+
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
@@ -34,14 +36,17 @@ public class ProductEntity {
     private Integer volumeProductsMl;
 
     @Column(name = "is_active")
-    private boolean is_active = true;
+    private boolean isActive = true;
 
-    @Column(name = "created_at")
+    @Column(name = "allow_promotions")
+    private Boolean allowPromotions = true;
+
     @CreationTimestamp
-    private java.time.LocalDateTime createdAt;
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
     @UpdateTimestamp
-    private java.time.LocalDateTime updatedAt;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
 }

@@ -1,10 +1,12 @@
 package reve_back.infrastructure.web.dto;
 
+import java.math.BigDecimal;
+
 public record LoyaltyResponse(
         Long clientId,
         Integer currentTier,
         Integer pointsInTier,
-        Double accumulatedMoney,
+        BigDecimal accumulatedMoney,
         Double costOfNextPoint,
-        boolean isVip
+        Boolean isVip
 ) {}

@@ -128,7 +128,7 @@ public class ClientService implements SearchClientUseCase, CreateClientUseCase, 
     public LoyaltyResponse getLoyaltyStatus(Long clientId) {
         // 1. Validar existencia del cliente
         ClientLoyaltyProgress progress = loyaltyProgressRepositoryPort.findByClientId(clientId)
-                .orElse(new ClientLoyaltyProgress(clientId, 1, 0, 0.0, LocalDateTime.now()));
+                .orElse(new ClientLoyaltyProgress(clientId, 1, 0, BigDecimal.ZERO, LocalDateTime.now()));
 
         // 2. Llamada a la función solicitada
         Double costOfNextPoint = loyaltyTierRepositoryPort.findCostByTier(progress.currentTier());
@@ -142,7 +142,7 @@ public class ClientService implements SearchClientUseCase, CreateClientUseCase, 
                 clientId,
                 progress.currentTier(),
                 progress.pointsInTier(),
-                progress.accumulatesMoney(),
+                progress.accumulatedMoney(),
                 costOfNextPoint,
                 isVip
         );

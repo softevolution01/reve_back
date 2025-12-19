@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import reve_back.domain.model.MovementType;
+import reve_back.infrastructure.persistence.enums.global.MovementUnit;
 
 import java.time.LocalDateTime;
 
@@ -29,7 +30,8 @@ public class InventoryMovementEntity {
     @Enumerated(EnumType.STRING) // Usamos Enum para evitar errores de escritura
     private MovementType type;
 
-    private String unit;
+    @Enumerated(EnumType.STRING)
+    private MovementUnit unit;
 
     @Column(nullable = false)
     private String reason;

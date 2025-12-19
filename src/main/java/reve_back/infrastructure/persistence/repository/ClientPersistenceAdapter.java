@@ -45,7 +45,7 @@ public class ClientPersistenceAdapter implements ClientRepositoryPort {
         entity.setPhone(client.phone());
 
         // Importante: Actualizar el estado VIP y contadores
-        entity.setVip(client.isVip());
+        entity.setIsVip(client.isVip());
         entity.setVipSince(client.vipSince());
         entity.setVipPurchaseCounter(client.vipPurchaseCounter());
 

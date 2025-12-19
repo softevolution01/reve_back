@@ -8,9 +8,9 @@ public record Client(
         String dni,
         String email,
         String phone,
-        boolean isVip,
+        Boolean isVip,           // boolean -> Boolean
         LocalDateTime vipSince,
-        int vipPurchaseCounter,
+        Integer vipPurchaseCounter, // int -> Integer
         LocalDateTime createdAt
 ) {
 }

@@ -4,7 +4,7 @@ public enum BottlesStatus {
     SELLADA("sellada"),
     AGOTADA("agotada"),
     DECANTADA("decantada"),
-    DECANT_AGOTADA("decant-agotada");
+    DECANT_AGOTADA("decant_agotada");
 
     private final String value;
 

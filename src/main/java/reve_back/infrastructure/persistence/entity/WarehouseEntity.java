@@ -25,11 +25,4 @@ public class WarehouseEntity {
 
     private String location;
 
-    // Relación One-to-Many: Un almacén puede estar en muchas sucursales (tu afirmación)
-    @OneToMany(mappedBy = "warehouse", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<BranchEntity> branches = new HashSet<>();
-
-    // Relación One-to-Many: Un almacén tiene muchas botellas (tu inventario central)
-    @OneToMany(mappedBy = "warehouse", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<BottleEntity> bottles = new HashSet<>();
 }

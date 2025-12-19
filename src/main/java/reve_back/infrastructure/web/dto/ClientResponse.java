@@ -6,6 +6,6 @@ public record ClientResponse(
         String dni,
         String email,
         String phone,
-        boolean is_vip
+        Boolean isVip
 ) {
 }

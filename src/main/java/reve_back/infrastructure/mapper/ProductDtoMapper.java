@@ -24,13 +24,14 @@ public class ProductDtoMapper {
         return new Product(
                 null,
                 request.brand().toUpperCase().trim(),
-                request.price(),
                 request.line().toUpperCase().trim(),
                 request.concentration().toUpperCase().trim(),
+                request.price(),
                 request.unitVolumeMl(),
-                true, // is_active
-                null, // createdAt
-                null  // updatedAt
+                true,
+                true,
+                null,
+                null
         );
     }
 
@@ -38,13 +39,14 @@ public class ProductDtoMapper {
         return new Product(
                 id,
                 request.brand().toUpperCase().trim(),
-                request.price(),
                 request.line().toUpperCase().trim(),
                 request.concentration().toUpperCase().trim(),
+                request.price(),
                 request.unitVolumeMl(),
-                existing.isActive(), // Mantenemos el estado actual
-                existing.createdAt(), // Mantenemos fecha creación
-                null // El updatedAt lo pondrá Hibernate
+                existing.isActive(),
+                existing.allowPromotions(),
+                existing.createdAt(),
+                null
         );
     }
 

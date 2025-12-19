@@ -46,7 +46,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             throw new RuntimeException("El producto ya existe con esa marca, línea o volumen.");
         }
 
-        // 2. Crear Producto (Usando Mapper para convertir Request -> Domain)
         Product product = productDtoMapper.toDomain(request);
         Product savedProduct = productRepositoryPort.save(product);
 
@@ -212,7 +211,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         List<Bottle> allBottles = bottleRepositoryPort.findAllByProductId(id);
         boolean hasPhysicalStock = allBottles.stream()
-                .anyMatch(b -> !"agotada".equalsIgnoreCase(b.status()) && !"decant-agotada".equalsIgnoreCase(b.status()));
+                .anyMatch(b -> !BottlesStatus.AGOTADA.name().equalsIgnoreCase(b.status()) && !BottlesStatus.DECANT_AGOTADA.name().equalsIgnoreCase(b.status()));
 
         if (hasPhysicalStock) {
             throw new RuntimeException("No puedes editar: hay stock físico involucrado.");

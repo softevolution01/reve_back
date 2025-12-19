@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,18 +26,31 @@ public class SaleEntity {
     @CreationTimestamp
     private LocalDateTime saleDate;
 
-    @Column(name = "total_amount", nullable = false)
+    @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
-    @Column(name = "client_id")
-    private Long clientId;
+    @Column(name = "igv_rate", precision = 4, scale = 2)
+    private BigDecimal igvRate;
 
-    @Column(name = "payment_method_id", nullable = false)
-    private Long paymentMethodId;
+    @ManyToOne
+    @JoinColumn(name = "branch_id", nullable = false)
+    private BranchEntity branch;
 
-    @Column(name = "registered_by")
-    private Long registeredBy;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private UserEntity user; // Vendedor
 
-    @Column(name = "branch_id")
-    private Long branchId;
+    @ManyToOne
+    @JoinColumn(name = "client_id")
+    private ClientEntity client;
+
+    @ManyToOne
+    @JoinColumn(name = "promotion_id")
+    private PromotionEntity promotion; // Promo cabecera (opcional)
+
+    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL)
+    private List<SaleItemEntity> items;
+
+    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL)
+    private List<SalePaymentEntity> payments;
 }

@@ -22,7 +22,9 @@ public class JpaBranchRepositoryAdapter implements BranchRepositoryPort {
                 .map(e->new Branch(
                         e.getId(),
                         e.getName(),
-                        e.getLocation()))
+                        e.getLocation(),
+                        e.getWarehouse().getId(),
+                        e.getIsCashManagedCentralized()))
                 .collect(Collectors.toList());
     }
 
@@ -32,7 +34,9 @@ public class JpaBranchRepositoryAdapter implements BranchRepositoryPort {
                 .map(e -> new Branch(
                         e.getId(),
                         e.getName(),
-                        e.getLocation()))
+                        e.getLocation(),
+                        e.getWarehouse().getId(),
+                        e.getIsCashManagedCentralized()))
                 .collect(Collectors.toSet());
     }
 }

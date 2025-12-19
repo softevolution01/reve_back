@@ -67,7 +67,7 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public void setInactiveById(Long id) {
         springDataProductRepository.findById(id).ifPresent(entity -> {
-            entity.set_active(false);
+            entity.setActive(false);
             springDataProductRepository.save(entity);
         });
     }

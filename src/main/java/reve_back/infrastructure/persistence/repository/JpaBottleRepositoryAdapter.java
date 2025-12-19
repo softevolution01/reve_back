@@ -2,20 +2,17 @@ package reve_back.infrastructure.persistence.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.out.BottleRepositoryPort;
 import reve_back.domain.model.Bottle;
+import reve_back.domain.model.BottlesStatus;
 import reve_back.infrastructure.persistence.entity.BottleEntity;
-import reve_back.infrastructure.persistence.entity.WarehouseEntity;
 import reve_back.infrastructure.persistence.jpa.SpringDataBottleRepository;
 import reve_back.infrastructure.persistence.jpa.SpringDataWarehouseRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
-import reve_back.infrastructure.util.BarcodeGenerator;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -29,143 +26,66 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
     @Override
     public List<Bottle> saveAll(List<Bottle> bottles) {
 
-        Set<Long> warehouseIds = bottles.stream()
-                .map(Bottle::warehouseId)
-                .collect(Collectors.toSet());
-
-        Map<Long, WarehouseEntity> warehouseCache = springDataWarehouseRepository.findAllById(warehouseIds).stream()
-                .collect(Collectors.toMap(WarehouseEntity::getId, Function.identity()));
-
         List<BottleEntity> entities = bottles.stream()
-                .map(bottle -> {
-                    // 3. Obtener la entidad Warehouse del caché
-                    WarehouseEntity warehouse = warehouseCache.get(bottle.warehouseId());
-                    if (warehouse == null) {
-                        throw new IllegalArgumentException("Warehouse no encontrado con ID: " + bottle.warehouseId());
-                    }
-
-                    // 4. Mapeo al constructor de BottleEntity
-                    //    Asegúrate de que la firma del constructor coincida con el orden de los argumentos:
-                    return new BottleEntity(
-                            null,
-                            bottle.productId(),
-                            warehouse,
-                            bottle.status(),
-                            bottle.barcode(),
-                            bottle.volumeMl(),
-                            bottle.remainingVolumeMl(),
-                            bottle.quantity(),
-                            null,
-                            null
-                    );
-                })
+                .map(mapper::toEntity)
                 .collect(Collectors.toList());
 
         List<BottleEntity> savedEntities = springDataBottleRepository.saveAll(entities);
         return savedEntities.stream()
-                .map(entity -> new Bottle(
-                        entity.getId(),
-                        entity.getProductId(),
-                        entity.getWarehouse().getId(),
-                        entity.getStatus(),
-                        entity.getBarcode(),
-                        entity.getVolumeMl(),
-                        entity.getRemainingVolumeMl(),
-                        entity.getQuantity()))
+                .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<Bottle> findAllByProductId(Long productId) {
-        List<BottleEntity> bottleEntities = springDataBottleRepository.findByProductId(productId);
-        return bottleEntities.stream()
-                .map(entity -> new Bottle(
-                        entity.getId(),
-                        entity.getProductId(),
-                        entity.getWarehouse().getId(),
-                        entity.getStatus(),
-                        entity.getBarcode(),
-                        entity.getVolumeMl(),
-                        entity.getRemainingVolumeMl(),
-                        entity.getQuantity()))
+        return springDataBottleRepository.findByProductId(productId).stream()
+                .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional
     public List<Bottle> updateAll(List<Bottle> bottles) {
         if (bottles == null || bottles.isEmpty()) {
             return List.of();
         }
-
-        Set<Long> warehouseIds = bottles.stream()
-                .map(Bottle::warehouseId)
-                .collect(Collectors.toSet());
-
-        Map<Long, WarehouseEntity> warehouseCache = springDataWarehouseRepository.findAllById(warehouseIds).stream()
-                .collect(Collectors.toMap(WarehouseEntity::getId, Function.identity()));
-
         List<BottleEntity> entities = bottles.stream()
-                .map(b -> {
-                    BottleEntity entity = b.id() != null
-                            ? springDataBottleRepository.findById(b.id())
-                            .orElseThrow(() -> new RuntimeException("Botella no encontrada: " + b.id()))
-                            : new BottleEntity();
+                .map(bottle -> {
+                    BottleEntity entity = mapper.toEntity(bottle);
 
-                    entity.setProductId(b.productId());
-                    entity.setStatus(b.status() != null ? b.status() : "agotada");
-                    entity.setBarcode(b.barcode() != null ? b.barcode() : BarcodeGenerator.generateAlphanumeric(12));
-                    entity.setVolumeMl(b.volumeMl() != null ? b.volumeMl() : 100);
-                    entity.setRemainingVolumeMl(b.remainingVolumeMl() != null ? b.remainingVolumeMl() : 100);
-
-                    entity.setQuantity(b.quantity() != null && b.quantity() > 0 ? b.quantity() : 1);
-
-                    WarehouseEntity warehouse = warehouseCache.get(b.warehouseId());
-                    if (warehouse == null) {
-                        throw new IllegalArgumentException("Warehouse no encontrado con ID: " + b.warehouseId());
-                    }
-                    entity.setWarehouse(warehouse);
+                    // Lógica de seguridad para evitar nulos críticos en actualización
+                    if (entity.getQuantity() == null) entity.setQuantity(0);
+                    if (entity.getRemainingVolumeMl() == null) entity.setRemainingVolumeMl(0);
 
                     return entity;
                 })
-                .toList();
+                .collect(Collectors.toList());
 
-        List<BottleEntity> saved = springDataBottleRepository.saveAllAndFlush(entities);
+        List<BottleEntity> saved = springDataBottleRepository.saveAll(entities);
 
         return saved.stream()
-                .map(e -> new Bottle(
-                        e.getId(),
-                        e.getProductId(),
-                        e.getWarehouse().getId(),
-                        e.getStatus(),
-                        e.getBarcode(),
-                        e.getVolumeMl(),
-                        e.getRemainingVolumeMl(),
-                        e.getQuantity()
-                ))
-                .toList();
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Bottle> findByBarcodeAndStatus(String barcode, String status) {
-        return springDataBottleRepository.findByBarcodeAndStatus(barcode, status)
-                .map(entity -> new Bottle(
-                        entity.getId(),
-                        entity.getProductId(),
-                        entity.getWarehouse().getId(),
-                        entity.getStatus(),
-                        entity.getBarcode(),
-                        entity.getVolumeMl(),
-                        entity.getRemainingVolumeMl(),
-                        entity.getQuantity()
-                ));
+        try {
+            BottlesStatus statusEnum = BottlesStatus.valueOf(status);
+            return springDataBottleRepository.findByBarcodeAndStatus(barcode, statusEnum.toString())
+                    .map(mapper::toDomain);
+        } catch (IllegalArgumentException e) {
+            // Si pasan un status que no existe (ej: "ROTA"), retornamos vacío
+            return Optional.empty();
+        }
     }
 
+    // Método auxiliar si necesitas buscar por ID
     @Override
     public Optional<Bottle> findById(Long id) {
-        // 1. Buscamos en la DB (devuelve BottleEntity)
-        // 2. Usamos el mapper para convertirlo a Bottle (Domain)
-        return springDataBottleRepository.findById(id)
-                .map(mapper::toDomain);
+        return springDataBottleRepository.findById(id).map(mapper::toDomain);
     }
 
     @Override

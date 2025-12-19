@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.*;
+import reve_back.infrastructure.persistence.enums.global.MovementUnit;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -14,10 +15,13 @@ import java.util.stream.Collectors;
 public class PersistenceMapper {
 
     public Branch toDomain(BranchEntity entity) {
+        if (entity == null) return null;
         return new Branch(
                 entity.getId(),
                 entity.getName(),
-                entity.getLocation()
+                entity.getLocation(),
+                entity.getWarehouse() != null ? entity.getWarehouse().getId() : null,
+                entity.getIsCashManagedCentralized()
         );
     }
 
@@ -26,8 +30,7 @@ public class PersistenceMapper {
         return new Warehouse(
                 entity.getId(),
                 entity.getName(),
-                entity.getLocation(),
-                null
+                entity.getLocation()
         );
     }
 
@@ -45,11 +48,12 @@ public class PersistenceMapper {
         return new Product(
                 entity.getId(),
                 entity.getBrand(),
-                entity.getPrice(),
                 entity.getLine(),
                 entity.getConcentration(),
+                entity.getPrice(),
                 entity.getVolumeProductsMl(),
-                entity.is_active(),
+                entity.isActive(),
+                entity.getAllowPromotions(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
@@ -60,43 +64,51 @@ public class PersistenceMapper {
         ProductEntity entity = new ProductEntity();
         entity.setId(domain.id());
         entity.setBrand(domain.brand());
-        entity.setPrice(domain.price());
         entity.setLine(domain.line());
         entity.setConcentration(domain.concentration());
         entity.setVolumeProductsMl(domain.volumeProductsMl());
-        entity.set_active(domain.isActive());
-        // createdAt y updatedAt no se setean manualmente, los maneja Hibernate
+        entity.setPrice(domain.price());
+        entity.setActive(domain.isActive());
+        entity.setAllowPromotions(domain.allowPromotions());
         return entity;
     }
 
 
     public DecantPrice toDomain(DecantPriceEntity entity) {
         if (entity == null) return null;
-        return new DecantPrice(entity.getId(), entity.getProductId(), entity.getVolumeMl(),
-                entity.getPrice(), entity.getBarcode(), entity.getImageBarcode());
+        return new DecantPrice(
+                entity.getId(),
+                entity.getProduct().getId(),
+                entity.getVolumeMl(),
+                entity.getPrice(),
+                entity.getBarcode(),
+                entity.getImageBarcode()
+        );
     }
 
     public DecantPriceEntity toEntity(DecantPrice domain) {
         if (domain == null) return null;
         DecantPriceEntity entity = new DecantPriceEntity();
         entity.setId(domain.id());
-        entity.setProductId(domain.productId());
         entity.setVolumeMl(domain.volumeMl());
         entity.setPrice(domain.price());
         entity.setBarcode(domain.barcode());
-        entity.setImageBarcode(domain.imageBarcode());
+
+        if (domain.productId() != null) {
+            entity.setProduct(entityManager.getReference(ProductEntity.class, domain.productId()));
+        }
+
         return entity;
     }
 
     public InventoryMovement toDomain(InventoryMovementEntity entity) {
         if (entity == null) return null;
-
         return new InventoryMovement(
                 entity.getId(),
                 entity.getBottleId(),
                 entity.getQuantity(),
-                entity.getType().name(), // Convierte el Enum INGRESO/EGRESO a String
-                entity.getUnit(),
+                entity.getType().name(),
+                entity.getUnit().name(),
                 entity.getReason(),
                 entity.getUserId(),
                 entity.getCreatedAt()
@@ -105,18 +117,21 @@ public class PersistenceMapper {
 
     public InventoryMovementEntity toEntity(InventoryMovement domain) {
         if (domain == null) return null;
-
         InventoryMovementEntity entity = new InventoryMovementEntity();
         entity.setId(domain.id());
-        entity.setBottleId(domain.bottleId());
         entity.setQuantity(domain.quantity());
-
-        if (domain.type() != null) {
-            entity.setType(MovementType.valueOf(domain.type().toUpperCase()));
-        }
-
         entity.setReason(domain.reason());
-        entity.setUserId(domain.userId());
+
+        if (domain.type() != null) entity.setType(MovementType.valueOf(domain.type()));
+        if (domain.unit() != null) entity.setUnit(MovementUnit.valueOf(domain.unit()));
+
+        // Relaciones
+        if (domain.bottleId() != null) {
+            entity.setBottleId(domain.bottleId());
+        }
+        if (domain.userId() != null) {
+            entity.setUserId(domain.userId());
+        }
 
         return entity;
     }
@@ -138,8 +153,7 @@ public class PersistenceMapper {
                 .clientId(domain.clientId())
                 .currentTier(domain.currentTier())
                 .pointsInTier(domain.pointsInTier())
-                .accumulatedMoney(domain.accumulatesMoney())
-                .updatedAt(domain.updateAt())
+                .accumulatedMoney(domain.accumulatedMoney())
                 .build();
     }
 
@@ -151,23 +165,15 @@ public class PersistenceMapper {
         );
     }
 
-    public LoyaltyTiersEntity toEntity(LoyaltyTiers domain){
-        if (domain == null) return null;
-        return LoyaltyTiersEntity.builder()
-                .tierLevel(domain.tierLevel())
-                .costPerPoint(domain.costPerPoint())
-                .build();
-    }
-
     private final EntityManager entityManager;
 
     public Bottle toDomain(BottleEntity entity) {
         if (entity == null) return null;
         return new Bottle(
                 entity.getId(),
-                entity.getProductId(),
-                entity.getWarehouse().getId(), // Extraemos solo el ID del objeto Warehouse
-                entity.getStatus(),
+                entity.getProduct().getId(),
+                entity.getWarehouse().getId(),
+                entity.getStatus().name(), // Enum -> String
                 entity.getBarcode(),
                 entity.getVolumeMl(),
                 entity.getRemainingVolumeMl(),
@@ -177,23 +183,26 @@ public class PersistenceMapper {
 
     public BottleEntity toEntity(Bottle domain) {
         if (domain == null) return null;
-
         BottleEntity entity = new BottleEntity();
         entity.setId(domain.id());
-        entity.setProductId(domain.productId());
 
-        // RESOLUCIÓN DEL CONFLICTO:
-        // No buscamos el warehouse en la DB, solo creamos una referencia con el ID.
-        if (domain.warehouseId() != null) {
-            WarehouseEntity warehouse = entityManager.getReference(WarehouseEntity.class, domain.warehouseId());
-            entity.setWarehouse(warehouse);
+        // Conversión String -> Enum
+        if (domain.status() != null) {
+            entity.setStatus(BottlesStatus.valueOf(domain.status().toUpperCase()));
         }
 
-        entity.setStatus(domain.status());
         entity.setBarcode(domain.barcode());
         entity.setVolumeMl(domain.volumeMl());
         entity.setRemainingVolumeMl(domain.remainingVolumeMl());
         entity.setQuantity(domain.quantity());
+
+        // Relaciones
+        if (domain.productId() != null) {
+            entity.setProduct(entityManager.getReference(ProductEntity.class, domain.productId()));
+        }
+        if (domain.warehouseId() != null) {
+            entity.setWarehouse(entityManager.getReference(WarehouseEntity.class, domain.warehouseId()));
+        }
 
         return entity;
     }
@@ -236,7 +245,6 @@ public class PersistenceMapper {
         );
     }
 
-    // --- Mapeo a Entidad ---
     public PermissionEntity toEntity(Permission domain){
         return null;
     }
@@ -258,13 +266,13 @@ public class PersistenceMapper {
 
     public Client toDomain(ClientEntity entity) {
         if (entity == null) return null;
-        return new reve_back.domain.model.Client(
+        return new Client(
                 entity.getId(),
                 entity.getFullname(),
                 entity.getDni(),
                 entity.getEmail(),
                 entity.getPhone(),
-                entity.isVip(),
+                entity.getIsVip(),
                 entity.getVipSince(),
                 entity.getVipPurchaseCounter(),
                 entity.getCreatedAt()
