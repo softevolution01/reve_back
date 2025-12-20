@@ -33,7 +33,13 @@ public class PromotionEntity {
     @Builder.Default
     private Boolean isActive = true;
 
-    // Relación para traer las reglas asociadas
+    @Column(name = "strategy_code", nullable = false)
+    private String strategyCode; // Ej: "DYNAMIC_N_M"
+
     @OneToMany(mappedBy = "promotion", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<PromotionRuleEntity> rules;
+
+    @Column(name = "trigger_quantity")
+    private Integer triggerQuantity;
+
 }

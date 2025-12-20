@@ -35,20 +35,24 @@ public class SaleItemEntity {
     @Column(nullable = false)
     private Integer quantity;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
+    @Column(name = "unit_price", nullable = false)
+    private BigDecimal unitPrice;
 
-    @Column(precision = 10, scale = 2)
-    private BigDecimal discount;
+    @Column(name = "system_discount")
+    private BigDecimal systemDiscount; // Cuánto descontó el 3x2
 
-    @Column(name = "extra_discount", precision = 10, scale = 2)
-    private BigDecimal extraDiscount;
+    @Column(name = "manual_discount")
+    private BigDecimal manualDiscount; // Cuánto bajó el vendedor a mano
 
-    @Builder.Default
-    private String status = "VENDIDO";
+    @Column(name = "final_subtotal")
+    private BigDecimal finalSubtotal; // (unitPrice * qty) - system - manual
 
-    // [CHIVATO] Auditoría de fuerza bruta
+    @Column(name = "is_promo_locked")
+    private Boolean isPromoLocked; // true si fue bloqueado por el 3x2
+
     @Column(name = "is_promo_forced")
-    @Builder.Default
-    private Boolean isPromoForced = false;
+    private Boolean isPromoForced; // true si el vendedor activó "Forzar Promo"
+
+    @Column(name = "promo_strategy_applied")
+    private String promoStrategyApplied;
 }

@@ -7,5 +7,6 @@ public record ProductSearchResponse(
         String nombreProducto,
         String line,
         Integer volumeMl,
-        Double price
+        Double price,
+        Boolean allowPromotions
 ) {}

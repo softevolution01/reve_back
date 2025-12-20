@@ -23,13 +23,13 @@ public class SalePaymentEntity {
     @JoinColumn(name = "sale_id", nullable = false)
     private SaleEntity sale;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_method_id", nullable = false)
     private PaymentMethodEntity paymentMethod;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false)
     private BigDecimal amount;
 
-    @Column(name = "commission_applied", precision = 10, scale = 2)
+    @Column(name = "commission_applied")
     private BigDecimal commissionApplied;
 }

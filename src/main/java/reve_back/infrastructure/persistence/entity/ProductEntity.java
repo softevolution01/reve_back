@@ -39,7 +39,7 @@ public class ProductEntity {
     private boolean isActive = true;
 
     @Column(name = "allow_promotions")
-    private Boolean allowPromotions = true;
+    private Boolean allowPromotions;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

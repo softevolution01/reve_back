@@ -1,14 +1,12 @@
 package reve_back.infrastructure.persistence.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @NoArgsConstructor
@@ -17,6 +15,7 @@ import java.util.List;
 @Getter
 @Setter
 @Table(name="sales")
+@Builder
 public class SaleEntity {
     @Id
     @GeneratedValue(strategy= GenerationType.IDENTITY)
@@ -29,27 +28,36 @@ public class SaleEntity {
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(name = "total_discount")
+    private BigDecimal totalDiscount;
+
     @Column(name = "igv_rate", precision = 4, scale = 2)
     private BigDecimal igvRate;
 
-    @ManyToOne
+    @Column(name = "payment_method")
+    private String paymentMethod;
+
+    @Column(name = "payment_surcharge")
+    private BigDecimal paymentSurcharge; // El 5% extra (si aplica)
+
+    @Column(name = "total_final_charged")
+    private BigDecimal totalFinalCharged;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", nullable = false)
     private BranchEntity branch;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private UserEntity user; // Vendedor
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id")
     private ClientEntity client;
 
-    @ManyToOne
-    @JoinColumn(name = "promotion_id")
-    private PromotionEntity promotion; // Promo cabecera (opcional)
-
-    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL)
-    private List<SaleItemEntity> items;
+    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<SaleItemEntity> items = new ArrayList<>();
 
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL)
     private List<SalePaymentEntity> payments;

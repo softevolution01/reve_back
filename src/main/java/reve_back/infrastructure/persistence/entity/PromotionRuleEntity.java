@@ -33,4 +33,12 @@ public class PromotionRuleEntity {
 
     @Column(name = "discount_value", nullable = false, precision = 10, scale = 2)
     private BigDecimal discountValue;
+
+    public boolean isBuyQuantity() {
+        return ruleType == PromotionRuleType.CONFIG_BUY_QUANTITY;
+    }
+
+    public boolean isPayQuantity() {
+        return ruleType == PromotionRuleType.CONFIG_PAY_QUANTITY;
+    }
 }

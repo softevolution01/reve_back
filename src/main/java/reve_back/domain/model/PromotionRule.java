@@ -1,11 +1,11 @@
 package reve_back.domain.model;
 
+import reve_back.infrastructure.persistence.enums.global.PromotionRuleType;
+
 import java.math.BigDecimal;
 
 public record PromotionRule(
-        Long id,
-        String ruleType, // NTH_ITEM_FREE, etc.
-        Integer itemIndex,
-        BigDecimal discountPercentage
+        PromotionRuleType ruleType, // Usamos tu Enum directamente
+        BigDecimal discountValue
 ) {
 }

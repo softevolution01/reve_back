@@ -9,6 +9,8 @@ public record Promotion(
         LocalDate startDate,
         LocalDate endDate,
         Boolean isActive,
-        List<PromotionRule> rules
+        String strategyCode,
+        List<PromotionRule> rules,
+        Integer triggerQuantity
 ) {
 }

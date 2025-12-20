@@ -163,7 +163,8 @@ public class ProductDtoMapper {
                 product.brand(),
                 product.line(),
                 bottle.volumeMl(),
-                product.price().doubleValue() // Ojo: Bottle usa el precio del producto base
+                product.price().doubleValue(),
+                product.allowPromotions()
         );
     }
 
@@ -176,7 +177,8 @@ public class ProductDtoMapper {
                 product.brand(),
                 product.line(),
                 decant.volumeMl(),
-                decant.price().doubleValue() // Decant tiene su propio precio
+                decant.price().doubleValue(),
+                product.allowPromotions()
         );
     }
 }
