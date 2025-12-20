@@ -17,8 +17,6 @@ import reve_back.infrastructure.web.dto.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static reve_back.domain.model.BottlesStatus.DECANT_AGOTADA;
-
 @RequiredArgsConstructor
 @Service
 public class ProductService implements ListProductsUseCase, CreateProductUseCase,

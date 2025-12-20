@@ -3,17 +3,13 @@ package reve_back.application.service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import reve_back.application.ports.in.CreateSaleUseCase;
 import reve_back.application.ports.in.InventoryMovementUseCase;
 import reve_back.application.ports.out.BottleRepositoryPort;
-import reve_back.application.ports.out.CashMovementRepositoryPort;
 import reve_back.application.ports.out.ProductRepositoryPort;
-import reve_back.application.ports.out.SalesRepositoryPort;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.InventoryMovementEntity;
 import reve_back.infrastructure.persistence.enums.global.MovementUnit;
 import reve_back.infrastructure.persistence.jpa.SpringDataMovementRepository;
-import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
 import reve_back.infrastructure.web.dto.QuickMovementRequest;
 
 @Service
