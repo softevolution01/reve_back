@@ -72,10 +72,9 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Bottle> findByBarcodeAndStatus(String barcode, String status) {
+    public Optional<Bottle> findByBarcodeAndStatus(String barcode, BottlesStatus status) {
         try {
-            BottlesStatus statusEnum = BottlesStatus.valueOf(status);
-            return springDataBottleRepository.findByBarcodeAndStatus(barcode, statusEnum.toString())
+            return springDataBottleRepository.findByBarcodeAndStatus(barcode, status)
                     .map(mapper::toDomain);
         } catch (IllegalArgumentException e) {
             // Si pasan un status que no existe (ej: "ROTA"), retornamos vacío

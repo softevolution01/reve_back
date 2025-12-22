@@ -284,7 +284,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
             return productDtoMapper.toScanResponse(decant, product);
         }
-        var bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, "sellada");
+        var bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, BottlesStatus.SELLADA);
 
         if (bottleOpt.isPresent()) {
             var bottle = bottleOpt.get();

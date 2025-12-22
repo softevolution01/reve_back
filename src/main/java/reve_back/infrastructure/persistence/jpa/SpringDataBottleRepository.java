@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
+import reve_back.domain.model.BottlesStatus;
 import reve_back.infrastructure.persistence.entity.BottleEntity;
 
 import java.util.List;
@@ -13,7 +14,7 @@ import java.util.Optional;
 @RepositoryRestResource(exported = false)
 public interface SpringDataBottleRepository extends JpaRepository<BottleEntity,Long> {
     List<BottleEntity> findByProductId(Long productId);
-    Optional<BottleEntity> findByBarcodeAndStatus(String barcode, String status);
+    Optional<BottleEntity> findByBarcodeAndStatus(String barcode, BottlesStatus status);
     @Query("""
         SELECT b\s
         FROM BottleEntity b

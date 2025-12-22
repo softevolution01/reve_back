@@ -133,8 +133,10 @@ public class ProductDtoMapper {
                 product.id(),
                 product.brand(),
                 product.line(),
+                product.concentration(),
                 bottle.volumeMl(),
-                priceOverride
+                priceOverride,
+                product.allowPromotions()
         );
     }
 
@@ -145,8 +147,10 @@ public class ProductDtoMapper {
                 product.id(),
                 product.brand(),
                 product.line(),
+                product.concentration(),
                 decant.volumeMl(),
-                decant.price()
+                decant.price(),
+                product.allowPromotions()
         );
     }
 
