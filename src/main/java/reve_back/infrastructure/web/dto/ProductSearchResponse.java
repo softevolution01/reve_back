@@ -9,5 +9,6 @@ public record ProductSearchResponse(
         Integer volumeMl,
         Double price,
         Boolean allowPromotions,
-        Integer totalStockMl
+        Integer totalStockMl,
+        String concentration
 ) {}

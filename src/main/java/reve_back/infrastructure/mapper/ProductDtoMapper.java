@@ -166,7 +166,8 @@ public class ProductDtoMapper {
                 bottle.volumeMl(),
                 product.price().doubleValue(),
                 product.allowPromotions(),
-                totalStock
+                totalStock,
+                product.concentration()
         );
     }
 
@@ -181,7 +182,8 @@ public class ProductDtoMapper {
                 decant.volumeMl(),
                 decant.price().doubleValue(),
                 product.allowPromotions(),
-                totalStock
+                totalStock,
+                product.concentration()
         );
     }
 }
