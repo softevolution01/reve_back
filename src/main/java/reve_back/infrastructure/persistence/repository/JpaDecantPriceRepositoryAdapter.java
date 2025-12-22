@@ -81,5 +81,9 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
         return entities.stream().map(mapper::toDomain).toList();
     }
 
-
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<DecantPrice> findById(Long id) {
+        return repository.findById(id).map(mapper::toDomain);
+    }
 }

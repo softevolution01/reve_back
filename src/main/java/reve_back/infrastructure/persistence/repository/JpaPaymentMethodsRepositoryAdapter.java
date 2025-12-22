@@ -7,6 +7,7 @@ import reve_back.domain.model.PaymentMethod;
 import reve_back.infrastructure.persistence.jpa.SprigDataPaymentMethodRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Repository
@@ -26,5 +27,15 @@ public class JpaPaymentMethodsRepositoryAdapter implements PaymentMethodsReposit
                         entity.getSurchargePercentage()
                 ))
                 .toList();
+    }
+
+    @Override
+    public Optional<PaymentMethod> findById(Long id) {
+        return springDataPaymentMethodRepository.findById(id)
+                .map(entity -> new PaymentMethod(
+                        entity.getId(),
+                        entity.getName(),
+                        entity.getSurchargePercentage()
+                ));
     }
 }

@@ -14,5 +14,6 @@ public interface DecantPriceRepositoryPort {
 
     Optional<DecantPrice> findByBarcode(String barcode);
     List<DecantPrice> searchActiveByProductName(String term);
+    Optional<DecantPrice> findById(Long id);
 
 }
