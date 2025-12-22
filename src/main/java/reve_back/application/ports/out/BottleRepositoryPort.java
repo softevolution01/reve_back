@@ -15,5 +15,6 @@ public interface BottleRepositoryPort {
     Optional<Bottle> findById(Long id);
     Bottle save(Bottle bottle);
     List<Bottle> searchActiveByProductName(String term);
+    Integer calculateTotalStockByProductId(Long productId);
 
 }

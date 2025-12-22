@@ -19,6 +19,8 @@ public record ScanBarcodeResponse(
 
         Double price,
 
-        Boolean allowPromotions
+        Boolean allowPromotions,
+
+        Integer totalStockMl
 ) {
 }

@@ -24,4 +24,12 @@ public interface SpringDataBottleRepository extends JpaRepository<BottleEntity,L
                OR LOWER(b.product.line) LIKE LOWER(CONCAT('%', :term, '%')))
    \s""")
     List<BottleEntity> findActiveByProductNameLike(@Param("term") String term, Pageable pageable);
+
+    @Query("""
+        SELECT COALESCE(SUM(b.remainingVolumeMl * b.quantity), 0)
+        FROM BottleEntity b
+        WHERE b.product.id = :productId
+          AND b.status IN ('SELLADA', 'DECANTADA')
+    """)
+    Integer sumTotalStockByProduct(@Param("productId") Long productId);
 }

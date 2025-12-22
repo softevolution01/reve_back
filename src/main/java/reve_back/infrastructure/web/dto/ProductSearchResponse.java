@@ -8,5 +8,6 @@ public record ProductSearchResponse(
         String line,
         Integer volumeMl,
         Double price,
-        Boolean allowPromotions
+        Boolean allowPromotions,
+        Integer totalStockMl
 ) {}

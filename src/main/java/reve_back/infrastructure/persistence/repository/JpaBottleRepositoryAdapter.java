@@ -101,4 +101,10 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
         var entities = springDataBottleRepository.findActiveByProductNameLike(term,pageable);
         return entities.stream().map(mapper::toDomain).toList();
     }
+
+    @Override
+    public Integer calculateTotalStockByProductId(Long productId) {
+        // Llamamos a la query nativa/JPQL que acabamos de crear
+        return springDataBottleRepository.sumTotalStockByProduct(productId);
+    }
 }
