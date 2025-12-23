@@ -5,7 +5,7 @@ import reve_back.infrastructure.persistence.enums.global.ItemType;
 import java.math.BigDecimal;
 
 public record CartItem(
-        Integer tempId,             // Identificador único en el carrito (UI)
+        Long tempId,             // Identificador único en el carrito (UI)
         Long productId,          // ID del producto padre
         Long decantPriceId,      // ID del precio específico (si es decant)
         BigDecimal price,        // Precio original

@@ -8,14 +8,12 @@ public record SaleResponse(
         Long saleId,
         LocalDateTime date,
         String branchName,
-        String sellerName,
-        String clientName,
-
-        BigDecimal subtotalBruto,
-        BigDecimal totalDiscount, // Suma de promo + manual
-        BigDecimal totalSurcharge, // Comisiones tarjeta
-        BigDecimal totalNeto, // Lo que pagó el cliente
-        BigDecimal baseImponibleIGV, // Para SUNAT
-
+        String sellerName, // Sugerencia extra: devolver nombre del vendedor en vez de ID
+        String clientName, // <--- AGREGAR ESTO (Importante)
+        BigDecimal totalBruto,
+        BigDecimal totalDiscount,
+        BigDecimal totalSurcharge,
+        BigDecimal totalNeto,
+        BigDecimal baseImponibleIGV,
         List<SaleItemResponse> items
 ) {}

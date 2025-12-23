@@ -3,7 +3,7 @@ package reve_back.infrastructure.web.dto;
 import java.math.BigDecimal;
 
 public record CartItemRequest(
-        Integer tempId,
+        Long tempId,
         Long productId,
         Long decantPriceId,
         BigDecimal price,
