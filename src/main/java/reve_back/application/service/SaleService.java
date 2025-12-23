@@ -37,21 +37,46 @@ public class SaleService implements CreateSaleUseCase {
     public SaleResponse createSale(SaleCreationRequest request) {
         Branch branch = branchRepositoryPort.findById(request.branchId())
                 .orElseThrow(() -> new RuntimeException("Sede no encontrada"));
-
         Long warehouseId = branch.warehouseId();
 
         List<SaleItem> saleItems = new ArrayList<>();
         BigDecimal totalBruto = BigDecimal.ZERO;
+        BigDecimal totalManualDiscount = BigDecimal.ZERO;
 
         for (SaleItemRequest itemReq : request.items()) {
             SaleItem domainItem = processStockLogic(itemReq, warehouseId, request.userId());
-            saleItems.add(domainItem);
 
-            BigDecimal lineTotal = domainItem.unitPrice().multiply(new BigDecimal(domainItem.quantity()));
-            totalBruto = totalBruto.add(lineTotal);
+            BigDecimal itemManualDiscount = itemReq.manualDiscount() != null ? itemReq.manualDiscount() : BigDecimal.ZERO;
+
+            BigDecimal lineGrossTotal = domainItem.unitPrice().multiply(new BigDecimal(domainItem.quantity()));
+            BigDecimal lineNetTotal = lineGrossTotal.subtract(itemManualDiscount);
+
+            SaleItem finalItem = new SaleItem(
+                    null,
+                    domainItem.productId(),
+                    domainItem.decantPriceId(),
+                    domainItem.productName(),
+                    domainItem.productBrand(),
+                    domainItem.quantity(),
+                    domainItem.unitPrice(),
+                    BigDecimal.ZERO,
+                    itemManualDiscount,
+                    lineNetTotal,
+                    domainItem.volumeMlPerUnit(),
+                    false, false, "NONE"
+            );
+
+            saleItems.add(finalItem);
+
+            totalBruto = totalBruto.add(lineGrossTotal);
+            totalManualDiscount = totalManualDiscount.add(itemManualDiscount);
         }
 
-        BigDecimal totalNeto = totalBruto.subtract(request.manualDiscount() != null ? request.manualDiscount() : BigDecimal.ZERO);
+        BigDecimal totalSystemDiscount = request.systemDiscount() != null ? request.systemDiscount() : BigDecimal.ZERO;
+
+        BigDecimal totalDiscountGlobal = totalManualDiscount.add(totalSystemDiscount);
+
+        BigDecimal totalNeto = totalBruto.subtract(totalDiscountGlobal);
 
         List<SalePayment> salePayments = new ArrayList<>();
 
@@ -71,7 +96,7 @@ public class SaleService implements CreateSaleUseCase {
         }
 
         Sale saleToSave = new Sale(null, LocalDateTime.now(), branch.id(), request.userId(), request.clientId(),
-                null, totalBruto, BigDecimal.ZERO, new BigDecimal("0.18"), BigDecimal.ZERO, totalNeto,
+                null, totalBruto, totalDiscountGlobal, new BigDecimal("0.18"), BigDecimal.ZERO, totalNeto,
                 "MIXTO", saleItems, salePayments);
 
         Sale savedSale = salesRepositoryPort.save(saleToSave);
@@ -81,7 +106,7 @@ public class SaleService implements CreateSaleUseCase {
         }
 
         return new SaleResponse(savedSale.id(), savedSale.saleDate(), branch.name(), "Vendedor", "Cliente",
-                totalBruto, BigDecimal.ZERO, BigDecimal.ZERO, totalNeto, totalNeto, null);
+                totalBruto, totalDiscountGlobal, BigDecimal.ZERO, totalNeto, totalNeto, null);
     }
 
     private SaleItem processStockLogic(SaleItemRequest req, Long whId, Long userId) {
