@@ -10,5 +10,6 @@ public record SaleItemRequest(
 
         BigDecimal manualDiscount,
         Boolean forcePromo,
-        Long forcePromoId
+        Long forcePromoId,
+        Boolean blockedPromo
 ) {}
