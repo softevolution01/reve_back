@@ -42,4 +42,8 @@ public class ClientEntity {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @PrimaryKeyJoinColumn
+    private ClientLoyaltyProgressEntity loyalty;
 }

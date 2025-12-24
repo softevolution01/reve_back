@@ -20,11 +20,6 @@ public class ClientLoyaltyProgressEntity {
     @Column(name = "client_id")
     private Long clientId;
 
-    @OneToOne
-    @MapsId
-    @JoinColumn(name = "client_id")
-    private ClientEntity client;
-
     @Column(name = "current_tier")
     @Builder.Default
     private Integer currentTier = 1;

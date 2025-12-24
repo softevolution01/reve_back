@@ -126,31 +126,37 @@ public class ProductDtoMapper {
         );
     }
 
-    public ScanBarcodeResponse toScanResponse(Bottle bottle, Product product, Double priceOverride) {
+    public ScanBarcodeResponse toScanResponse(Bottle bottle, Product product, Double priceOverride, Integer totalStockMl) {
         return new ScanBarcodeResponse(
                 bottle.id(),
                 "BOTELLA",
                 product.id(),
                 product.brand(),
                 product.line(),
+                product.concentration(),
                 bottle.volumeMl(),
-                priceOverride
+                priceOverride,
+                product.allowPromotions(),
+                totalStockMl
         );
     }
 
-    public ScanBarcodeResponse toScanResponse(DecantPrice decant, Product product) {
+    public ScanBarcodeResponse toScanResponse(DecantPrice decant, Product product, Integer totalStockMl) {
         return new ScanBarcodeResponse(
                 decant.id(),
                 "DECANT",
                 product.id(),
                 product.brand(),
                 product.line(),
+                product.concentration(),
                 decant.volumeMl(),
-                decant.price()
+                decant.price(),
+                product.allowPromotions(),
+                totalStockMl
         );
     }
 
-    public ProductSearchResponse toSearchResponse(Bottle bottle, Product product) {
+    public ProductSearchResponse toSearchResponse(Bottle bottle, Product product,Integer totalStock) {
         return new ProductSearchResponse(
                 bottle.id(),
                 "BOTELLA",
@@ -159,12 +165,14 @@ public class ProductDtoMapper {
                 product.line(),
                 bottle.volumeMl(),
                 product.price().doubleValue(),
-                product.allowPromotions()
+                product.allowPromotions(),
+                totalStock,
+                product.concentration()
         );
     }
 
     // NUEVO: Para Decants en la búsqueda
-    public ProductSearchResponse toSearchResponse(DecantPrice decant, Product product) {
+    public ProductSearchResponse toSearchResponse(DecantPrice decant, Product product,Integer totalStock) {
         return new ProductSearchResponse(
                 decant.id(),
                 "DECANT",
@@ -173,7 +181,9 @@ public class ProductDtoMapper {
                 product.line(),
                 decant.volumeMl(),
                 decant.price().doubleValue(),
-                product.allowPromotions()
+                product.allowPromotions(),
+                totalStock,
+                product.concentration()
         );
     }
 }

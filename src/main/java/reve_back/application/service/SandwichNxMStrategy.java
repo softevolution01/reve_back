@@ -32,7 +32,7 @@ public class SandwichNxMStrategy implements PromotionStrategy {
         Deque<CartItem> deque = new ArrayDeque<>(candidates);
 
         BigDecimal totalDiscount = BigDecimal.ZERO;
-        List<Integer> lockedTempIds = new ArrayList<>();
+        ArrayList<Long> lockedTempIds = new ArrayList<>();
 
         // 3. CÁLCULO
         while (deque.size() >= n) {

@@ -72,10 +72,9 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Bottle> findByBarcodeAndStatus(String barcode, String status) {
+    public Optional<Bottle> findByBarcodeAndStatus(String barcode, BottlesStatus status) {
         try {
-            BottlesStatus statusEnum = BottlesStatus.valueOf(status);
-            return springDataBottleRepository.findByBarcodeAndStatus(barcode, statusEnum.toString())
+            return springDataBottleRepository.findByBarcodeAndStatus(barcode, status)
                     .map(mapper::toDomain);
         } catch (IllegalArgumentException e) {
             // Si pasan un status que no existe (ej: "ROTA"), retornamos vacío
@@ -101,5 +100,11 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
         var pageable = PageRequest.of(0, 5);
         var entities = springDataBottleRepository.findActiveByProductNameLike(term,pageable);
         return entities.stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public Integer calculateTotalStockByProductId(Long productId) {
+        // Llamamos a la query nativa/JPQL que acabamos de crear
+        return springDataBottleRepository.sumTotalStockByProduct(productId);
     }
 }

@@ -272,15 +272,19 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             var decant = decantOpt.get();
             var product = getProductOrThrow(decant.productId());
 
-            return productDtoMapper.toScanResponse(decant, product);
+            Integer totalStockMl = bottleRepositoryPort.calculateTotalStockByProductId(product.id());
+
+            return productDtoMapper.toScanResponse(decant, product, totalStockMl);
         }
-        var bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, "sellada");
+        var bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, BottlesStatus.SELLADA);
 
         if (bottleOpt.isPresent()) {
             var bottle = bottleOpt.get();
             var product = getProductOrThrow(bottle.productId());
 
-            return productDtoMapper.toScanResponse(bottle, product, product.price().doubleValue());
+            Integer totalStockMl = bottleRepositoryPort.calculateTotalStockByProductId(product.id());
+
+            return productDtoMapper.toScanResponse(bottle, product, product.price().doubleValue(),totalStockMl);
         }
 
         throw new RuntimeException("Código de barras no encontrado: " + barcode);
@@ -299,14 +303,16 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         List<Bottle> bottles = bottleRepositoryPort.searchActiveByProductName(term);
         for (Bottle b : bottles) {
             var p = productRepositoryPort.findById(b.productId()).orElseThrow();
-            results.add(productDtoMapper.toSearchResponse(b, p));
+            Integer totalStock = bottleRepositoryPort.calculateTotalStockByProductId(p.id());
+            results.add(productDtoMapper.toSearchResponse(b, p,totalStock));
         }
 
         // 2. Decants
         List<DecantPrice> decants = decantPriceRepositoryPort.searchActiveByProductName(term);
         for (DecantPrice d : decants) {
             var p = productRepositoryPort.findById(d.productId()).orElseThrow();
-            results.add(productDtoMapper.toSearchResponse(d, p));
+            Integer totalStock = bottleRepositoryPort.calculateTotalStockByProductId(p.id());
+            results.add(productDtoMapper.toSearchResponse(d, p,totalStock));
         }
 
         return results;

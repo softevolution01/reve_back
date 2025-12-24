@@ -78,14 +78,12 @@ public class InventoryService implements InventoryMovementUseCase {
             newRemainingVolumeMl = newVolumeML;
         }
         else if ("ML".equals(unit)) {
-            // ... (La lógica de ML / Decants se mantiene igual) ...
             if (movementType == MovementType.INGRESO) {
                 newRemainingVolumeMl += request.quantity();
             } else {
                 newRemainingVolumeMl -= request.quantity();
                 if (newRemainingVolumeMl < 0) throw new RuntimeException("Mililitros insuficientes.");
             }
-            // Nota: En ML no tocamos newQty ni newVolumeML total, solo el remaining
         }
 
         String newStatus = currentStatus;
@@ -100,8 +98,12 @@ public class InventoryService implements InventoryMovementUseCase {
         else if ("ML".equals(unit)) {
             if (newRemainingVolumeMl == 0) {
                 newStatus = "DECANT_AGOTADA";
+                newQty = 0;
+                newVolumeML = 0;
             } else {
                 newStatus = "DECANTADA";
+                newQty = 1;
+                newVolumeML = volumenPorUnidad;
             }
         }
 
@@ -127,7 +129,4 @@ public class InventoryService implements InventoryMovementUseCase {
 
         movementRepository.save(history);
     }
-
-
-
 }

@@ -41,7 +41,7 @@ public class SaleSimulationService implements SaleSimulationUseCase {
             promoResult = strategy.execute(cartItems, n, m);
         } else {
             // Caso "Sin Descuento" o ID nulo: Retornamos resultado vacío (0 descuento)
-            promoResult = new StrategyResult(BigDecimal.ZERO, List.of(), "NONE");
+            promoResult = new StrategyResult(BigDecimal.ZERO, new ArrayList<>(), "NONE");
         }
 
         // 2. Consolidar resultados finales (Funciona igual para ambos casos)
@@ -54,28 +54,29 @@ public class SaleSimulationService implements SaleSimulationUseCase {
 
         // 1. Descuento automático (Estrategia)
         BigDecimal systemDiscount = promoResult.totalDiscount();
+        List<Long> remainingLocks = new ArrayList<>(promoResult.lockedTempItemIds());
 
         // 2. Recorremos items para calcular totales y descuentos manuales
         for (CartItem item : items) {
             totalBruto = totalBruto.add(item.price());
 
             // ¿El ítem está libre? (NO fue usado por la promo automática)
-            if (!promoResult.lockedTempItemIds().contains(item.tempId())) {
+            if (remainingLocks.contains(item.tempId())) {
 
-                // A. Null Safety: Si viene null del front, lo tratamos como 0
-                BigDecimal itemManualDiscount = item.manualDiscount() != null
-                        ? item.manualDiscount()
-                        : BigDecimal.ZERO;
+                remainingLocks.remove(item.tempId());
 
-                // B. Validación Lógica: Solo sumamos si es mayor a 0
-                if (itemManualDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                continue;
+            }
 
-                    // C. REGLA DE NEGOCIO: El descuento no puede ser mayor al precio del producto.
-                    // Si el producto vale 50 y el vendedor puso descuento 100, solo descontamos 50.
-                    BigDecimal applicableDiscount = itemManualDiscount.min(item.price());
+            BigDecimal itemManualDiscount = item.manualDiscount() != null
+                    ? item.manualDiscount()
+                    : BigDecimal.ZERO;
 
-                    manualDiscountTotal = manualDiscountTotal.add(applicableDiscount);
-                }
+            // B. Validación Lógica
+            if (itemManualDiscount.compareTo(BigDecimal.ZERO) > 0) {
+                // C. Regla: No mayor al precio
+                BigDecimal applicableDiscount = itemManualDiscount.min(item.price());
+                manualDiscountTotal = manualDiscountTotal.add(applicableDiscount);
             }
         }
 
