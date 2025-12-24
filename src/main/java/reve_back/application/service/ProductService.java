@@ -127,43 +127,33 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Override
     @Transactional(readOnly = true)
     public ProductPageResponse findAll(int page, int size) {
-        // 1. Obtener IDs de sedes autorizadas para el usuario actual
         Set<Long> userBranchIds = getAuthorizedBranchIds();
 
-        // 2. Obtener la página de productos desde el puerto
         Page<ProductSummaryDTO> productPage = productRepositoryPort.findAll(page, size);
 
-        // 3. Procesar cada producto para incluir sus botellas y decants
         List<ProductListResponse> items = productPage.getContent().stream()
                 .map(summary -> {
-                    // Buscamos todas las botellas del producto
                     List<Bottle> allBottles = bottleRepositoryPort.findAllByProductId(summary.id());
 
-                    // Filtramos botellas: Solo las que pertenecen a las sedes del usuario
                     List<BottleCreationResponse> validBottles = allBottles.stream()
                             .filter(b -> userBranchIds.contains(b.warehouseId()))
                             .map(productDtoMapper::toBottleResponse)
                             .toList();
 
-                    // REGLA DE NEGOCIO: Si el usuario no tiene stock/botellas en sus sedes,
-                    // no mostramos este producto en su lista.
                     if (validBottles.isEmpty()) {
                         return null;
                     }
 
-                    // Buscamos los precios de decants
                     List<DecantResponse> validDecants = decantPriceRepositoryPort.findAllByProductId(summary.id())
                             .stream()
                             .map(decantDtoMapper::toResponse)
                             .toList();
 
-                    // Mapeamos a la respuesta final de la lista
                     return productDtoMapper.toProductListResponse(summary, validBottles, validDecants);
                 })
-                .filter(Objects::nonNull) // Eliminamos los productos que el usuario no puede ver
+                .filter(Objects::nonNull)
                 .toList();
 
-        // 4. Devolver respuesta paginada para el Frontend
         return new ProductPageResponse(
                 items,
                 productPage.getTotalElements(),
