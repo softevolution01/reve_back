@@ -7,6 +7,6 @@ public record LoyaltyResponse(
         Integer currentTier,
         Integer pointsInTier,
         BigDecimal accumulatedMoney,
-        Double costOfNextPoint,
+        BigDecimal costOfNextPoint,
         Boolean isVip
 ) {}

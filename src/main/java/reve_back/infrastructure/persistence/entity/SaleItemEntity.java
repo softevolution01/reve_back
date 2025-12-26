@@ -23,7 +23,6 @@ public class SaleItemEntity {
     @JoinColumn(name = "sale_id", nullable = false)
     private SaleEntity sale;
 
-    // Puede ser Botella O Decant (Uno será null)
     @ManyToOne
     @JoinColumn(name = "product_id")
     private ProductEntity product;

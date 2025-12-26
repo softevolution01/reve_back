@@ -56,25 +56,18 @@ public class InventoryService implements InventoryMovementUseCase {
         int volumenPorUnidad = product.volumeProductsMl();
 
         if ("UNIT".equals(unit)) {
-            // 1. Primero calculamos SOLO la nueva cantidad física
             if (movementType == MovementType.INGRESO) {
                 newQty = bottle.quantity() + request.quantity();
-            } else { // EGRESO
+            } else {
                 newQty = bottle.quantity() - request.quantity();
 
-                // Validación de seguridad
                 if (newQty < 0) {
                     throw new RuntimeException("Stock insuficiente: No puedes retirar " + request.quantity() + " botellas si solo tienes " + bottle.quantity());
                 }
             }
 
-            // 2. AHORA RECALCULAMOS EL VOLUMEN (Aquí está la corrección que pediste)
-            // Esto garantiza la consistencia exacta:
-            // 2 botellas = 200ml.
-            // Si quitas 1 -> Queda 1 botella = 100ml.
             newVolumeML = newQty * volumenPorUnidad;
 
-            // En botellas SELLADAS, el "Remaining" siempre es igual al Total
             newRemainingVolumeMl = newVolumeML;
         }
         else if ("ML".equals(unit)) {

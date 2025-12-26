@@ -9,15 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.CreateSaleUseCase;
 import reve_back.application.ports.out.*;
 import reve_back.domain.model.*;
+import reve_back.infrastructure.persistence.entity.ClientLoyaltyProgressEntity;
 import reve_back.infrastructure.web.dto.*;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +31,7 @@ public class SaleService implements CreateSaleUseCase {
     private final ClientRepositoryPort clientRepositoryPort;
     private final PaymentMethodsRepositoryPort paymentMethodRepositoryPort;
     private final InventoryMovementRepositoryPort inventoryMovementRepositoryPort;
+    private final LoyaltyTiersRepositoryPort loyaltyTiersRepositoryPort;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -66,11 +65,13 @@ public class SaleService implements CreateSaleUseCase {
 
             methodNames.add(pm.name().toUpperCase());
 
-            // Recargo Tarjeta (5%)
             BigDecimal surcharge = BigDecimal.ZERO;
             if (pm.surchargePercentage() != null && pm.surchargePercentage().compareTo(BigDecimal.ZERO) > 0) {
-                surcharge = pReq.amount().multiply(pm.surchargePercentage())
-                        .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                BigDecimal divisor = new BigDecimal("100").add(pm.surchargePercentage());
+                surcharge = pReq.amount()
+                        .multiply(pm.surchargePercentage())
+                        .divide(divisor, 2, RoundingMode.HALF_UP);
+
                 totalSurcharge = totalSurcharge.add(surcharge);
             }
 
@@ -86,83 +87,106 @@ public class SaleService implements CreateSaleUseCase {
         // Reconocer método enviado
         String paymentMethodName = (methodNames.size() > 1) ? "MIXTO" : methodNames.iterator().next();
 
-        // --- TU LÓGICA DE ÍTEMS (MANTENIDA EXACTAMENTE IGUAL) ---
-        List<SaleItem> saleItems = new ArrayList<>();
-        BigDecimal totalBruto = BigDecimal.ZERO;
+        List<SaleItem> tempItems = new ArrayList<>();
         BigDecimal totalManualDiscount = BigDecimal.ZERO;
 
-        int itemCount = 0;
         for (SaleItemRequest itemReq : request.items()) {
-            itemCount++;
-            log.info("--- Procesando Item #{} - ID Inventario: {}, Tipo: {}, Cantidad: {} ---",
-                    itemCount, itemReq.idInventario(), itemReq.tipoVendible(), itemReq.quantity());
-
             SaleItem domainItem = processStockLogic(itemReq, warehouseId, request.userId());
 
             BigDecimal itemManualDiscount = itemReq.manualDiscount() != null ? itemReq.manualDiscount() : BigDecimal.ZERO;
-            BigDecimal lineGrossTotal = domainItem.unitPrice().multiply(new BigDecimal(domainItem.quantity()));
-            BigDecimal lineNetTotal = lineGrossTotal.subtract(itemManualDiscount);
+            totalManualDiscount = totalManualDiscount.add(itemManualDiscount);
 
-            log.info("    Item Procesado: Total Bruto: {}, Descuento Manual: {}, Total Neto: {}",
-                    lineGrossTotal, itemManualDiscount, lineNetTotal);
-
-            SaleItem finalItem = new SaleItem(
-                    null,
-                    domainItem.productId(),
-                    domainItem.decantPriceId(),
-                    domainItem.productName(),
-                    domainItem.productBrand(),
-                    domainItem.quantity(),
-                    domainItem.unitPrice(),
-                    BigDecimal.ZERO,
+            SaleItem temp = new SaleItem(
+                    null, domainItem.productId(), domainItem.decantPriceId(), domainItem.productName(), domainItem.productBrand(),
+                    domainItem.quantity(), domainItem.unitPrice(),
+                    BigDecimal.ZERO, // System discount placeholder
                     itemManualDiscount,
-                    lineNetTotal, // Se ajustará con recargo abajo
+                    BigDecimal.ZERO, // Final subtotal placeholder (lo calculamos luego)
                     domainItem.volumeMlPerUnit(),
                     itemReq.blockedPromo() != null ? itemReq.blockedPromo() : false,
                     false, "NONE"
             );
-
-            saleItems.add(finalItem);
-            totalBruto = totalBruto.add(lineGrossTotal);
-            totalManualDiscount = totalManualDiscount.add(itemManualDiscount);
+            tempItems.add(temp);
         }
 
-        // Cálculos Financieros Finales
-        BigDecimal totalSystemDiscount = request.systemDiscount() != null ? request.systemDiscount() : BigDecimal.ZERO;
-        BigDecimal totalDiscountGlobal = totalManualDiscount.add(totalSystemDiscount);
-        BigDecimal totalNeto = totalBruto.subtract(totalDiscountGlobal);
+        BigDecimal remainingSystemDiscount = request.systemDiscount() != null ? request.systemDiscount() : BigDecimal.ZERO;
 
-        // NUEVO: total_final_charged = neto + recargo
-        BigDecimal totalFinalCharged = totalNeto.add(totalSurcharge);
+        if (remainingSystemDiscount.compareTo(BigDecimal.ZERO) > 0) {
+            List<Integer> promoIndices = new ArrayList<>();
+            for (int i = 0; i < tempItems.size(); i++) {
+                if (tempItems.get(i).isPromoLocked()) {
+                    promoIndices.add(i);
+                }
+            }
 
-        // NUEVO: Repartir el recargo proporcionalmente en los items
-        if (totalSurcharge.compareTo(BigDecimal.ZERO) > 0 && totalNeto.compareTo(BigDecimal.ZERO) > 0) {
-            for (int i = 0; i < saleItems.size(); i++) {
-                SaleItem item = saleItems.get(i);
-                BigDecimal share = item.finalSubtotal().divide(totalNeto, 4, RoundingMode.HALF_UP).multiply(totalSurcharge);
-                saleItems.set(i, new SaleItem(
-                        item.id(), item.productId(), item.decantPriceId(), item.productName(), item.productBrand(),
-                        item.quantity(), item.unitPrice(), item.systemDiscount(), item.manualDiscount(),
-                        item.finalSubtotal().add(share).setScale(2, RoundingMode.HALF_UP), // <--- RECARGO SUMADO
-                        item.volumeMlPerUnit(), item.isPromoLocked(), item.isPromoForced(), item.promoStrategyApplied()
+            promoIndices.sort(Comparator.comparing(i -> tempItems.get(i).unitPrice()));
+
+            for (Integer index : promoIndices) {
+                if (remainingSystemDiscount.compareTo(BigDecimal.ZERO) <= 0) break;
+
+                SaleItem currentItem = tempItems.get(index);
+                BigDecimal lineGross = currentItem.unitPrice().multiply(new BigDecimal(currentItem.quantity()));
+
+                BigDecimal discountToApply = lineGross.min(remainingSystemDiscount);
+
+                tempItems.set(index, new SaleItem(
+                        currentItem.id(), currentItem.productId(), currentItem.decantPriceId(), currentItem.productName(), currentItem.productBrand(),
+                        currentItem.quantity(), currentItem.unitPrice(),
+                        discountToApply, // <--- AQUI SE INYECTA EL DESCUENTO CALCULADO
+                        currentItem.manualDiscount(),
+                        BigDecimal.ZERO, // Aun no calculamos el neto final
+                        currentItem.volumeMlPerUnit(), currentItem.isPromoLocked(), currentItem.isPromoForced(), currentItem.promoStrategyApplied()
                 ));
+
+                remainingSystemDiscount = remainingSystemDiscount.subtract(discountToApply);
             }
         }
 
-        log.info("Resumen Financiero - Bruto: {}, Desc. Global: {}, Recargo: {}, FINAL: {}",
-                totalBruto, totalDiscountGlobal, totalSurcharge, totalFinalCharged);
+        List<SaleItem> finalSaleItems = new ArrayList<>();
+        BigDecimal totalBruto = BigDecimal.ZERO;
+        BigDecimal totalSystemDiscountApplied = BigDecimal.ZERO;
 
-        // Guardado de la Venta (Con tus variables)
+        for (SaleItem item : tempItems) {
+            BigDecimal lineGrossTotal = item.unitPrice().multiply(new BigDecimal(item.quantity()));
+
+            BigDecimal lineNetTotal = lineGrossTotal
+                    .subtract(item.manualDiscount())
+                    .subtract(item.systemDiscount());
+
+            finalSaleItems.add(new SaleItem(
+                    item.id(), item.productId(), item.decantPriceId(), item.productName(), item.productBrand(),
+                    item.quantity(), item.unitPrice(), item.systemDiscount(), item.manualDiscount(),
+                    lineNetTotal,
+                    item.volumeMlPerUnit(), item.isPromoLocked(), item.isPromoForced(), item.promoStrategyApplied()
+            ));
+
+            totalBruto = totalBruto.add(lineGrossTotal);
+            totalSystemDiscountApplied = totalSystemDiscountApplied.add(item.systemDiscount());
+        }
+
+        BigDecimal totalDiscountGlobal = totalManualDiscount.add(totalSystemDiscountApplied);
+        BigDecimal totalNeto = totalBruto.subtract(totalDiscountGlobal);
+        BigDecimal totalFinalCharged = totalNeto.add(totalSurcharge);
+
         Sale saleToSave = new Sale(null, LocalDateTime.now(), branch.id(), request.userId(), finalClientId,
                 null, totalBruto, totalDiscountGlobal, new BigDecimal("0.18"), totalSurcharge, totalFinalCharged,
-                paymentMethodName, saleItems, salePayments);
+                paymentMethodName, finalSaleItems, salePayments);
 
         Sale savedSale = salesRepositoryPort.save(saleToSave);
         log.info("✅ Venta Guardada con ID: {}", savedSale.id());
 
-        // VIP y Loyalty intactos (Usamos totalFinalCharged para los puntos)
-        try { updateClientVipStatus(finalClientId); } catch (Exception e) { log.error("Error VIP: {}", e.getMessage()); }
-        try { updateLoyalty(finalClientId, totalFinalCharged); } catch (Exception e) { log.error("Error Loyalty: {}", e.getMessage()); }
+        boolean triggerVipReset = false;
+        try {
+            triggerVipReset = updateClientVipStatus(finalClientId);
+        } catch (Exception e) {
+            log.error("Error VIP: {}", e.getMessage());
+        }
+
+        try {
+            updateLoyalty(finalClientId, totalNeto, triggerVipReset);
+        } catch (Exception e) {
+            log.error("Error Loyalty: {}", e.getMessage());
+        }
 
         return new SaleResponse(savedSale.id(), savedSale.saleDate(), branch.name(), "Vendedor","Tef",
                 totalBruto, totalDiscountGlobal, totalSurcharge, totalNeto, totalFinalCharged, null);
@@ -222,21 +246,17 @@ public class SaleService implements CreateSaleUseCase {
 
         log.info("    Calculando: Se necesitan {}ml. Hay disponible {}ml", volumeNeeded, currentRem);
 
-        // ESCENARIO A: FALTA STOCK (Split)
         if (currentRem < volumeNeeded) {
             log.info("    >> ESCENARIO A: Stock insuficiente. Realizando consumo split.");
             int volumeDeficit = volumeNeeded - currentRem;
 
-            // 1. Consumir remanente actual
             log.info("       1. Consumiendo remanente de {}ml de botella ID {}", currentRem, decantBottle.id());
             registerInventoryMovement(decantBottle.id(), currentRem, "ML", userId);
 
-            // 2. Reabastecer
             log.info("       2. Reabasteciendo desde botella sellada...");
             replenishDecantBottle(decantBottle, userId);
             Bottle refreshedBottle = bottleRepositoryPort.findById(decantBottle.id()).orElseThrow();
 
-            // 3. Consumir déficit
             int finalRemaining = refreshedBottle.remainingVolumeMl() - volumeDeficit;
             log.info("       3. Consumiendo déficit de {}ml. Remanente final será: {}ml", volumeDeficit, finalRemaining);
 
@@ -251,7 +271,6 @@ public class SaleService implements CreateSaleUseCase {
             registerInventoryMovement(decantBottle.id(), req.quantity(), "ML", userId);
 
         }
-        // ESCENARIO B: SUFICIENTE STOCK
         else {
             log.info("    >> ESCENARIO B: Stock suficiente.");
             int nextRemaining = currentRem - volumeNeeded;
@@ -264,7 +283,7 @@ public class SaleService implements CreateSaleUseCase {
                     1
             ));
 
-            registerInventoryMovement(decantBottle.id(), volumeNeeded, "ML", userId);
+            registerInventoryMovement(decantBottle.id(), req.quantity(), "ML", userId);
         }
 
         return new SaleItem(null, null, dp.id(), null, null, req.quantity(), req.price(),
@@ -345,58 +364,85 @@ public class SaleService implements CreateSaleUseCase {
         inventoryMovementRepositoryPort.save(movement);
     }
 
-    private void updateLoyalty(Long clientId, BigDecimal amount) {
-        // 1. Validamos que no sea el cliente genérico
+    private void updateLoyalty(Long clientId, BigDecimal amount, boolean resetProgress) {
         if (clientId == 1L) return;
 
-        // 2. Buscamos el progreso actual (o creamos uno vacío si es nuevo)
+        // 1. Obtener Objeto de Dominio (El puerto devuelve Domain, no Entity)
         ClientLoyaltyProgress progress = loyaltyProgressRepositoryPort.findByClientId(clientId)
                 .orElse(null);
 
-        // Valores iniciales si es nuevo
-        BigDecimal currentAccumulatedMoney = BigDecimal.ZERO;
-        int currentPoints = 0;
-        int currentTier = 1;
+        BigDecimal totalHistoryMoney = BigDecimal.ZERO;
 
-        // Si ya existe, recuperamos sus valores
-        if (progress != null) {
-            currentAccumulatedMoney = progress.accumulatedMoney();
-            currentPoints = progress.pointsInTier();
-            currentTier = progress.currentTier();
+        // 2. RECUPERAR HISTÓRICO (Usando getters del dominio)
+        if (progress != null && !resetProgress) {
+            totalHistoryMoney = progress.accumulatedMoney();
         }
 
-        // -------------------------------------------------------
-        // 3. LA LÓGICA: 1 SOL = 1 PUNTO
-        // -------------------------------------------------------
+        // 3. SUMAR LA COMPRA ACTUAL
+        totalHistoryMoney = totalHistoryMoney.add(amount);
 
-        // A. Sumamos el dinero al histórico total
-        BigDecimal totalMoney = currentAccumulatedMoney.add(amount);
+        // =================================================================================
+        // 4. BUCLE DE CÁLCULO (Simulación desde Nivel 1)
+        // =================================================================================
+        BigDecimal remainingMoney = totalHistoryMoney;
+        int calculatedTier = 1;
 
-        // B. Calculamos los puntos ganados en ESTA venta
-        // .intValue() elimina los decimales.
-        // Ej: 100.00 soles -> 100 puntos.
-        // Ej: 50.90 soles  -> 50 puntos.
-        int pointsEarned = amount.intValue();
+        while (true) {
+            // A. Configuración del nivel (El puerto devuelve Domain de LoyaltyTier)
+            LoyaltyTiers tierConfig = loyaltyTiersRepositoryPort.findByTierLevel(calculatedTier)
+                    .orElse(null);
 
-        // C. Sumamos a los puntos que ya tenía
-        int totalPoints = currentPoints + pointsEarned;
+            // Si se acabaron los niveles, paramos.
+            if (tierConfig == null) {
+                calculatedTier--;
+                break;
+            }
 
-        // 4. Guardamos
-        loyaltyProgressRepositoryPort.save(new ClientLoyaltyProgress(
+            // Calculamos Meta: Costo * 6
+            BigDecimal levelGoal = tierConfig.costPerPoint().multiply(new BigDecimal("6"));
+
+            // B. ¿El dinero cubre este nivel completo?
+            if (remainingMoney.compareTo(levelGoal) >= 0) {
+
+                if (loyaltyTiersRepositoryPort.existsByTierLevel(calculatedTier + 1)) {
+                    // SÍ: Pagamos y subimos
+                    remainingMoney = remainingMoney.subtract(levelGoal);
+                    calculatedTier++;
+                    log.info("🚀 Sube al Nivel {}", calculatedTier);
+                } else {
+                    // Tope alcanzado
+                    break;
+                }
+            } else {
+                // NO: Se queda en este nivel
+                break;
+            }
+        }
+
+        // =================================================================================
+        // 5. LÓGICA B: GUARDAR DINERO SOBRANTE COMO "PUNTOS"
+        // =================================================================================
+        // Ejemplo: 400 total - 360 costo = 40 sobrantes. Guardamos 40.
+        int pointsToSave = remainingMoney.intValue();
+
+        // 6. GUARDAR (Pasamos el Objeto de Dominio al Puerto)
+        // El puerto/adaptador se encargará de usar el Mapper para convertirlo a Entity.
+        ClientLoyaltyProgress domainToSave = new ClientLoyaltyProgress(
                 clientId,
-                currentTier,
-                totalPoints,
-                totalMoney,
+                calculatedTier,
+                pointsToSave,        // Guardamos el remanente (40)
+                totalHistoryMoney,   // Guardamos el histórico total (400)
                 LocalDateTime.now()
-                // Si agregaste el purchase_count a esta entidad, añádelo aquí
-        ));
+        );
 
-        log.info("Loyalty actualizado Cliente {}: +{} Puntos (Total: {}). Dinero Total: {}",
-                clientId, pointsEarned, totalPoints, totalMoney);
+        loyaltyProgressRepositoryPort.save(domainToSave);
+
+        log.info("✅ Loyalty Actualizado (Dominio) -> Cliente: {}, Nivel: {}, Puntos/Sobrante: {}, Total: {}",
+                clientId, calculatedTier, pointsToSave, totalHistoryMoney);
     }
 
-    private void updateClientVipStatus(Long clientId) {
-        if (clientId == 1L) return;
+    private boolean updateClientVipStatus(Long clientId) {
+        if (clientId == 1L) return false;
 
         Client client = clientRepositoryPort.findById(clientId)
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
@@ -404,13 +450,16 @@ public class SaleService implements CreateSaleUseCase {
         int currentCounter = client.vipPurchaseCounter();
         int newCounter = currentCounter + 1;
 
-        boolean isVip = client.isVip();
+        boolean wasVip = client.isVip();
+        boolean isNowVip = wasVip;       // Por defecto, mantenemos el estado actual (si era VIP, sigue VIP)
         LocalDateTime vipSince = client.vipSince();
+        boolean shouldResetLoyalty = false;
 
-        if (!isVip && newCounter >= 2) {
-            isVip = true;
-            vipSince = LocalDateTime.now(); // Marcamos la fecha de ascenso
-            log.info("🌟 El Cliente {} ha alcanzado {} compras. ¡Ahora es VIP!", client.fullname(), newCounter);
+        if (!wasVip && newCounter == 2) {
+            isNowVip = true;
+            shouldResetLoyalty = true;
+            vipSince = LocalDateTime.now();
+            log.info("🌟 Cliente {} llega a 2 compras: Se vuelve VIP y se resetea su lealtad.", client.fullname());
         }
 
         clientRepositoryPort.save(new Client(
@@ -419,10 +468,12 @@ public class SaleService implements CreateSaleUseCase {
                 client.dni(),
                 client.email(),
                 client.phone(),
-                isVip,
+                isNowVip,
                 vipSince,
                 newCounter,
                 client.createdAt()
         ));
+
+        return shouldResetLoyalty;
     }
 }

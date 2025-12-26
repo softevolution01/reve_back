@@ -131,7 +131,7 @@ public class ClientService implements SearchClientUseCase, CreateClientUseCase, 
                 .orElse(new ClientLoyaltyProgress(clientId, 1, 0, BigDecimal.ZERO, LocalDateTime.now()));
 
         // 2. Llamada a la función solicitada
-        Double costOfNextPoint = loyaltyTierRepositoryPort.findCostByTier(progress.currentTier());
+        BigDecimal costOfNextPoint = loyaltyTierRepositoryPort.findCostByTier(progress.currentTier());
 
         // 3. Validar si el cliente es VIP desde el repositorio de clientes
         boolean isVip = clientRepositoryPort.findById(clientId)

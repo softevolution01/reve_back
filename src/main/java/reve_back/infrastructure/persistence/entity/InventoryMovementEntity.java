@@ -27,7 +27,7 @@ public class InventoryMovementEntity {
     private Integer quantity;
 
     @Column(nullable = false)
-    @Enumerated(EnumType.STRING) // Usamos Enum para evitar errores de escritura
+    @Enumerated(EnumType.STRING)
     private MovementType type;
 
     @Enumerated(EnumType.STRING)

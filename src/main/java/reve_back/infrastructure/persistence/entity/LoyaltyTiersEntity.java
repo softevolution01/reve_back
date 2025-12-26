@@ -1,10 +1,9 @@
 package reve_back.infrastructure.persistence.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,9 +15,12 @@ import lombok.*;
 public class LoyaltyTiersEntity {
 
     @Id
-    @Column(nullable = false, name = "tier_level")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "tier_level", unique = true, nullable = false)
     private Integer tierLevel;
 
-    @Column(nullable = false, name = "cost_per_point")
-    private Double costPerPoint;
+    @Column(name = "cost_per_point", nullable = false)
+    private BigDecimal costPerPoint;
 }

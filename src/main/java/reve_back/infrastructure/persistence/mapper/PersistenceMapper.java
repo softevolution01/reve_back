@@ -160,6 +160,7 @@ public class PersistenceMapper {
     public LoyaltyTiers toDomain(LoyaltyTiersEntity entity){
         if (entity == null) return null;
         return new LoyaltyTiers(
+                entity.getId(),
                 entity.getTierLevel(),
                 entity.getCostPerPoint()
         );
