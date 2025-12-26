@@ -83,11 +83,12 @@ public class SecurityConfig {
         // Usar el valor inyectado
         // Si tu allowedOrigins puede tener múltiples URLs separadas por coma,
         // debes usar split() para convertirlo en List<String>.
-        configuration.setAllowedOrigins(Arrays.asList(properties.cors().allowedOrigins().split(",")));
+//        configuration.setAllowedOrigins(Arrays.asList(properties.cors().allowedOrigins().split(",")));
 
         // Configuración de métodos, headers y credenciales (mismas que en WebConfig)
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
