@@ -7,12 +7,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.ProductRepositoryPort;
-import reve_back.domain.model.DecantPrice;
-import reve_back.domain.model.NewProduct;
 import reve_back.domain.model.Product;
-import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
-import reve_back.infrastructure.persistence.jpa.SpringDataDecantPriceRepository;
 import reve_back.infrastructure.persistence.jpa.SpringDataProductRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
 import reve_back.infrastructure.web.dto.ProductSummaryDTO;
@@ -67,7 +63,7 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public void setInactiveById(Long id) {
         springDataProductRepository.findById(id).ifPresent(entity -> {
-            entity.set_active(false);
+            entity.setActive(false);
             springDataProductRepository.save(entity);
         });
     }

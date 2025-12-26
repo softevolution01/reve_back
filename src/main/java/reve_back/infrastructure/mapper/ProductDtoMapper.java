@@ -2,17 +2,12 @@ package reve_back.infrastructure.mapper;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import reve_back.application.ports.out.BranchRepositoryPort;
 import reve_back.application.ports.out.WarehouseRepositoryPort;
 import reve_back.domain.model.*;
-import reve_back.infrastructure.persistence.entity.DecantPriceEntity;
-import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Objects;
 
 @RequiredArgsConstructor
 @Component
@@ -24,13 +19,14 @@ public class ProductDtoMapper {
         return new Product(
                 null,
                 request.brand().toUpperCase().trim(),
-                request.price(),
                 request.line().toUpperCase().trim(),
                 request.concentration().toUpperCase().trim(),
+                request.price(),
                 request.unitVolumeMl(),
-                true, // is_active
-                null, // createdAt
-                null  // updatedAt
+                true,
+                true,
+                null,
+                null
         );
     }
 
@@ -38,13 +34,14 @@ public class ProductDtoMapper {
         return new Product(
                 id,
                 request.brand().toUpperCase().trim(),
-                request.price(),
                 request.line().toUpperCase().trim(),
                 request.concentration().toUpperCase().trim(),
+                request.price(),
                 request.unitVolumeMl(),
-                existing.isActive(), // Mantenemos el estado actual
-                existing.createdAt(), // Mantenemos fecha creación
-                null // El updatedAt lo pondrá Hibernate
+                existing.isActive(),
+                existing.allowPromotions(),
+                existing.createdAt(),
+                null
         );
     }
 
@@ -129,27 +126,64 @@ public class ProductDtoMapper {
         );
     }
 
-    public ScanBarcodeResponse toScanResponse(Bottle bottle, Product product, Double priceOverride) {
+    public ScanBarcodeResponse toScanResponse(Bottle bottle, Product product, Double priceOverride, Integer totalStockMl) {
         return new ScanBarcodeResponse(
                 bottle.id(),
                 "BOTELLA",
                 product.id(),
                 product.brand(),
                 product.line(),
+                product.concentration(),
                 bottle.volumeMl(),
-                priceOverride
+                priceOverride,
+                product.allowPromotions(),
+                totalStockMl
         );
     }
 
-    public ScanBarcodeResponse toScanResponse(DecantPrice decant, Product product) {
+    public ScanBarcodeResponse toScanResponse(DecantPrice decant, Product product, Integer totalStockMl) {
         return new ScanBarcodeResponse(
                 decant.id(),
                 "DECANT",
                 product.id(),
                 product.brand(),
                 product.line(),
+                product.concentration(),
                 decant.volumeMl(),
-                decant.price()
+                decant.price(),
+                product.allowPromotions(),
+                totalStockMl
+        );
+    }
+
+    public ProductSearchResponse toSearchResponse(Bottle bottle, Product product,Integer totalStock) {
+        return new ProductSearchResponse(
+                bottle.id(),
+                "BOTELLA",
+                product.id(),
+                product.brand(),
+                product.line(),
+                bottle.volumeMl(),
+                product.price().doubleValue(),
+                product.allowPromotions(),
+                totalStock,
+                product.concentration()
+        );
+    }
+
+    // NUEVO: Para Decants en la búsqueda
+    public ProductSearchResponse toSearchResponse(DecantPrice decant, Product product,Integer totalStock) {
+        return new ProductSearchResponse(
+                decant.id(),
+                "DECANT",
+                product.id(),
+                product.brand(),
+                product.line(),
+                decant.volumeMl(),
+                decant.price().doubleValue(),
+                product.allowPromotions(),
+                totalStock,
+                product.concentration()
         );
     }
 }

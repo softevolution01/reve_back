@@ -1,8 +1,8 @@
 package reve_back.infrastructure.persistence.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -10,6 +10,9 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Table(name = "clients")
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ClientEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,23 +24,26 @@ public class ClientEntity {
     @Column(unique = true)
     private String dni;
 
-    @Column(unique = true)
     private String email;
 
     private String phone;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    @Column(name = "is_vip", nullable = false)
-    private boolean isVip = false;
+    @Column(name = "is_vip")
+    @Builder.Default
+    private Boolean isVip = false;
 
     @Column(name = "vip_since")
     private LocalDateTime vipSince;
 
-    @Column(name = "vip_purchase_counter", nullable = false)
-    private int vipPurchaseCounter = 0;
+    @Column(name = "vip_purchase_counter")
+    @Builder.Default
+    private Integer vipPurchaseCounter = 0;
 
-    @OneToOne(mappedBy = "client", fetch = FetchType.LAZY)
-    private UserEntity user;
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @PrimaryKeyJoinColumn
+    private ClientLoyaltyProgressEntity loyalty;
 }

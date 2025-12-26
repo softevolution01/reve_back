@@ -1,10 +1,10 @@
 package reve_back.domain.model;
 
 public enum BottlesStatus {
-    SELLADA("sellada"),
-    AGOTADA("agotada"),
-    DECANTADA("decantada"),
-    DECANT_AGOTADA("decant-agotada");
+    SELLADA("SELLADA"),
+    AGOTADA("AGOTADA"),
+    DECANTADA("DECANTADA"),
+    DECANT_AGOTADA("DECANT_AGOTADA");
 
     private final String value;
 

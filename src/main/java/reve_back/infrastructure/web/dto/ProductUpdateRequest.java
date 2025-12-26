@@ -11,6 +11,7 @@ public record ProductUpdateRequest(
         Double price,
         Integer unitVolumeMl,
         @NotEmpty(message = "Debes especificar al menos una botella/sucursal")
-        List<BottleCreationRequest> bottles
+        List<BottleCreationRequest> bottles,
+        List<DecantRequest> decants
 ) {
 }

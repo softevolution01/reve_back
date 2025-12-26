@@ -13,8 +13,14 @@ public record ScanBarcodeResponse(
 
         String line,
 
+        String concentration,
+
         Integer volumeMl,
 
-        Double price
+        Double price,
+
+        Boolean allowPromotions,
+
+        Integer totalStockMl
 ) {
 }

@@ -1,6 +1,5 @@
 package reve_back.infrastructure.persistence.entity;
 
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import reve_back.domain.model.BottlesStatus;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,16 +20,19 @@ public class BottleEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private ProductEntity product;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "warehouse_id", nullable = false)
     private WarehouseEntity warehouse;
 
+    @Enumerated(EnumType.STRING) // Mapea el texto de SQL al Enum
     @Column(nullable = false)
-    private String status;
+    private BottlesStatus status;
 
+    @Column(unique = true)
     private String barcode;
 
     @Column(name = "volume_ml", nullable = false)

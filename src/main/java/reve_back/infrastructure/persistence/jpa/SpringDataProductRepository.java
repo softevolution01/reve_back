@@ -5,9 +5,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
-import reve_back.domain.model.NewProduct;
-import reve_back.domain.model.Product;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
+
 
 @RepositoryRestResource(exported = false)
 public interface SpringDataProductRepository extends JpaRepository<ProductEntity,Long> {
@@ -15,10 +14,10 @@ public interface SpringDataProductRepository extends JpaRepository<ProductEntity
     Page<ProductEntity> findAll(Pageable pageable);
     boolean existsByBrandAndLine(String brand, String lines);
     boolean existsByBrandAndLineAndIdNot(String brand, String lines,Long id);
-    @Query("SELECT p FROM ProductEntity p WHERE p.is_active = true")
+    @Query("SELECT p FROM ProductEntity p WHERE p.isActive = true")
     Page<ProductEntity> findByIsActiveTrue(Pageable pageable);
 
-    @Query("SELECT COUNT(p) FROM ProductEntity p WHERE p.is_active = true")
+    @Query("SELECT COUNT(p) FROM ProductEntity p WHERE p.isActive = true")
     long countByIsActiveTrue();
 
     boolean existsByBrandIgnoreCaseAndLineIgnoreCaseAndConcentrationIgnoreCaseAndVolumeProductsMl(

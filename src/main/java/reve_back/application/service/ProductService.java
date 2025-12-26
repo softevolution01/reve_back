@@ -17,12 +17,10 @@ import reve_back.infrastructure.web.dto.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static reve_back.domain.model.BottlesStatus.DECANT_AGOTADA;
-
 @RequiredArgsConstructor
 @Service
 public class ProductService implements ListProductsUseCase, CreateProductUseCase,
-        GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase, ScanBarcodeUseCase {
+        GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase, ScanBarcodeUseCase, SearchProductsUseCase {
 
 
     private final ProductRepositoryPort productRepositoryPort;
@@ -46,7 +44,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             throw new RuntimeException("El producto ya existe con esa marca, línea o volumen.");
         }
 
-        // 2. Crear Producto (Usando Mapper para convertir Request -> Domain)
         Product product = productDtoMapper.toDomain(request);
         Product savedProduct = productRepositoryPort.save(product);
 
@@ -211,11 +208,13 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         String concentration = request.concentration().toUpperCase().trim();
 
         List<Bottle> allBottles = bottleRepositoryPort.findAllByProductId(id);
+
         boolean hasPhysicalStock = allBottles.stream()
-                .anyMatch(b -> !"agotada".equalsIgnoreCase(b.status()) && !"decant-agotada".equalsIgnoreCase(b.status()));
+                .anyMatch(b -> !BottlesStatus.AGOTADA.name().equalsIgnoreCase(b.status())
+                        && !BottlesStatus.DECANT_AGOTADA.name().equalsIgnoreCase(b.status()));
 
         if (hasPhysicalStock) {
-            throw new RuntimeException("No puedes editar: hay stock físico involucrado.");
+            throw new RuntimeException("No puedes editar propiedades críticas: hay stock físico involucrado.");
         }
 
         if (productRepositoryPort.existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(
@@ -224,9 +223,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         }
 
         Product productToUpdate = productDtoMapper.toDomain(id, request, existingProduct);
-        Product updatedProduct = productRepositoryPort.save(productToUpdate);
+        productRepositoryPort.save(productToUpdate);
 
-        // Lógica de Sincronización de Botellas (Merge)
         Map<Long, Bottle> existingBottlesMap = allBottles.stream()
                 .collect(Collectors.toMap(Bottle::warehouseId, b -> b, (e1, e2) -> e1));
 
@@ -249,7 +247,46 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
         if (!bottlesToSync.isEmpty()) bottleRepositoryPort.saveAll(bottlesToSync);
 
-        return getProductDetails(id); // Reutilizamos para devolver la respuesta fresca
+        if (request.decants() != null) {
+            List<DecantPrice> currentDecants = decantPriceRepositoryPort.findAllByProductId(id);
+
+            Map<Integer, DecantPrice> existingDecantsMap = currentDecants.stream()
+                    .collect(Collectors.toMap(DecantPrice::volumeMl, d -> d));
+
+            List<DecantPrice> decantsToSave = new ArrayList<>();
+
+            for (DecantRequest decReq : request.decants()) {
+                DecantPrice existingDecant = existingDecantsMap.get(decReq.volumeMl());
+
+                if (existingDecant != null) {
+                    decantsToSave.add(new DecantPrice(
+                            existingDecant.id(),
+                            id,
+                            decReq.volumeMl(),
+                            decReq.price(),
+                            existingDecant.barcode(),
+                            existingDecant.imageBarcode()
+                    ));
+                } else {
+                    decantsToSave.add(new DecantPrice(
+                            null,
+                            id,
+                            decReq.volumeMl(),
+                            decReq.price(),
+                            BarcodeGenerator.generateAlphanumeric(12),
+                            null
+                    ));
+                }
+            }
+
+            // C. Guardar usando el método específico de tu puerto
+            if (!decantsToSave.isEmpty()) {
+                decantPriceRepositoryPort.saveAllForProduct(id, decantsToSave);
+            }
+        }
+        // =================================================================================
+
+        return getProductDetails(id);
     }
 
 
@@ -261,9 +298,9 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         if (!product.isActive()) throw new RuntimeException("El producto ya está inactivo.");
 
         List<Bottle> bottles = bottleRepositoryPort.findAllByProductId(id);
-        boolean canDelete = bottles.stream().allMatch(b -> "agotada".equalsIgnoreCase(b.status()) || "decant-agotada".equalsIgnoreCase(b.status()));
+        boolean canDelete = bottles.stream().allMatch(b -> "AGOTADA".equalsIgnoreCase(b.status()) || "DECANT_AGOTADA".equalsIgnoreCase(b.status()));
 
-        if (!canDelete) throw new RuntimeException("No se puede eliminar: tiene botellas con stock.");
+        if (!canDelete) throw new RuntimeException("No se puede eliminar: el producto tiene botellas asociadas con stock.");
 
         productRepositoryPort.setInactiveById(id);
     }
@@ -285,15 +322,19 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
             var decant = decantOpt.get();
             var product = getProductOrThrow(decant.productId());
 
-            return productDtoMapper.toScanResponse(decant, product);
+            Integer totalStockMl = bottleRepositoryPort.calculateTotalStockByProductId(product.id());
+
+            return productDtoMapper.toScanResponse(decant, product, totalStockMl);
         }
-        var bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, "sellada");
+        var bottleOpt = bottleRepositoryPort.findByBarcodeAndStatus(barcode, BottlesStatus.SELLADA);
 
         if (bottleOpt.isPresent()) {
             var bottle = bottleOpt.get();
             var product = getProductOrThrow(bottle.productId());
 
-            return productDtoMapper.toScanResponse(bottle, product, product.price().doubleValue());
+            Integer totalStockMl = bottleRepositoryPort.calculateTotalStockByProductId(product.id());
+
+            return productDtoMapper.toScanResponse(bottle, product, product.price().doubleValue(),totalStockMl);
         }
 
         throw new RuntimeException("Código de barras no encontrado: " + barcode);
@@ -302,5 +343,26 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     private Product getProductOrThrow(Long productId) {
         return productRepositoryPort.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Inconsistencia: Producto no encontrado para ID " + productId));
+    }
+
+    @Override
+    public List<ProductSearchResponse> searchProducts(String term) {
+        List<ProductSearchResponse> results = new ArrayList<>();
+
+        List<Bottle> bottles = bottleRepositoryPort.searchActiveByProductName(term);
+        for (Bottle b : bottles) {
+            var p = productRepositoryPort.findById(b.productId()).orElseThrow();
+            Integer totalStock = bottleRepositoryPort.calculateTotalStockByProductId(p.id());
+            results.add(productDtoMapper.toSearchResponse(b, p,totalStock));
+        }
+
+        List<DecantPrice> decants = decantPriceRepositoryPort.searchActiveByProductName(term);
+        for (DecantPrice d : decants) {
+            var p = productRepositoryPort.findById(d.productId()).orElseThrow();
+            Integer totalStock = bottleRepositoryPort.calculateTotalStockByProductId(p.id());
+            results.add(productDtoMapper.toSearchResponse(d, p,totalStock));
+        }
+
+        return results;
     }
 }

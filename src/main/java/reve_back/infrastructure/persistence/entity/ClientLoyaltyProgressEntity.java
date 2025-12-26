@@ -2,6 +2,8 @@ package reve_back.infrastructure.persistence.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -18,21 +20,18 @@ public class ClientLoyaltyProgressEntity {
     @Column(name = "client_id")
     private Long clientId;
 
-    @Column(name = "current_tier", nullable = false)
+    @Column(name = "current_tier")
+    @Builder.Default
     private Integer currentTier = 1;
 
-    @Column(name = "points_in_tier", nullable = false)
+    @Column(name = "points_in_tier")
+    @Builder.Default
     private Integer pointsInTier = 0;
 
-    @Column(name = "accumulated_money", nullable = false)
-    private Double accumulatedMoney;
+    @Column(name = "accumulated_money", precision = 10, scale = 2)
+    private BigDecimal accumulatedMoney;
 
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    @PrePersist
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

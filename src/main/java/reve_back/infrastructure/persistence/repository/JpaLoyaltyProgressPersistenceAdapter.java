@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.LoyaltyProgressRepositoryPort;
 import reve_back.domain.model.ClientLoyaltyProgress;
+import reve_back.infrastructure.persistence.entity.ClientEntity;
 import reve_back.infrastructure.persistence.entity.ClientLoyaltyProgressEntity;
+import reve_back.infrastructure.persistence.jpa.ClientJpaRepository;
 import reve_back.infrastructure.persistence.jpa.SpringLoyaltyProgressRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
 
@@ -15,6 +17,7 @@ import java.util.Optional;
 public class JpaLoyaltyProgressPersistenceAdapter implements LoyaltyProgressRepositoryPort {
 
     private final SpringLoyaltyProgressRepository springLoyaltyProgressRepository;
+    private final ClientJpaRepository clientJpaRepository;
     private final PersistenceMapper mapper;
 
     @Override
@@ -24,8 +27,13 @@ public class JpaLoyaltyProgressPersistenceAdapter implements LoyaltyProgressRepo
     }
 
     @Override
-    public void save(ClientLoyaltyProgress progress) {
-        ClientLoyaltyProgressEntity entity = mapper.toEntity(progress);
+    public void save(ClientLoyaltyProgress domain) {
+        ClientLoyaltyProgressEntity entity = mapper.toEntity(domain);
+
+        if (entity.getClientId() == null) {
+            entity.setClientId(domain.clientId());
+        }
+
         springLoyaltyProgressRepository.save(entity);
     }
 

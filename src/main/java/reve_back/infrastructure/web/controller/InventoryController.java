@@ -7,10 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import reve_back.application.ports.in.InventoryMovementUseCase;
-import reve_back.domain.model.InventoryMovement;
 import reve_back.infrastructure.web.dto.QuickMovementRequest;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController

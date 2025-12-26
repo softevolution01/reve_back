@@ -5,11 +5,12 @@ import java.time.LocalDateTime;
 public record Product(
         Long id,
         String brand,
-        Double price,
         String line,
         String concentration,
+        Double price,
         Integer volumeProductsMl,
-        boolean isActive,
+        Boolean isActive,
+        Boolean allowPromotions,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}
