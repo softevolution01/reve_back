@@ -1,5 +1,7 @@
 package reve_back.infrastructure.config;
 
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.servers.Server;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,6 +31,9 @@ import java.util.Arrays;
 @EnableMethodSecurity
 @EnableWebSecurity
 @Configuration
+@OpenAPIDefinition(servers = {
+        @Server(url = "/", description = "Default Server URL")
+})
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
@@ -80,15 +85,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Usar el valor inyectado
-        // Si tu allowedOrigins puede tener múltiples URLs separadas por coma,
-        // debes usar split() para convertirlo en List<String>.
-//        configuration.setAllowedOrigins(Arrays.asList(properties.cors().allowedOrigins().split(",")));
+        configuration.setAllowedOrigins(Arrays.asList(
+                "https://reve-sale.vercel.app",
+                "https://reveback-production.up.railway.app",
+                "http://localhost:5173",
+                "http://localhost:3000"
+        ));
 
-        // Configuración de métodos, headers y credenciales (mismas que en WebConfig)
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "accept", "Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
