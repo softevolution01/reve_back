@@ -10,6 +10,7 @@ public record ProductCreationResponse(
         String line,
         String concentration,
         Double price,
+        Boolean allowPromotions,
         List<BottleCreationResponse> bottles,
         List<DecantResponse> decants
 ) {

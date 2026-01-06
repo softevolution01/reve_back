@@ -24,7 +24,7 @@ public class ProductDtoMapper {
                 request.price(),
                 request.unitVolumeMl(),
                 true,
-                true,
+                request.allowPromotions(),
                 null,
                 null
         );
@@ -39,7 +39,7 @@ public class ProductDtoMapper {
                 request.price(),
                 request.unitVolumeMl(),
                 existing.isActive(),
-                existing.allowPromotions(),
+                request.allowPromotions(),
                 existing.createdAt(),
                 null
         );
@@ -93,6 +93,7 @@ public class ProductDtoMapper {
                 p.line(),
                 p.concentration(),
                 p.price(),
+                p.allowPromotions(),
                 bottles,
                 decants
         );
@@ -119,6 +120,7 @@ public class ProductDtoMapper {
                 p.concentration(),
                 p.price(),
                 p.volumeProductsMl(),
+                p.allowPromotions(),
                 p.createdAt(),
                 p.updatedAt(),
                 bottles,

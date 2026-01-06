@@ -9,6 +9,7 @@ import reve_back.domain.model.BottlesStatus;
 import reve_back.infrastructure.persistence.entity.BottleEntity;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RepositoryRestResource(exported = false)
@@ -32,4 +33,22 @@ public interface SpringDataBottleRepository extends JpaRepository<BottleEntity,L
           AND b.status IN ('SELLADA', 'DECANTADA')
     """)
     Integer sumTotalStockByProduct(@Param("productId") Long productId);
+
+    @Query(value = """
+        SELECT\s
+            w.name AS "almacen",
+            p.brand || ' - ' || p.line AS "producto",
+            b.barcode AS "barcode",
+            b.volume_ml AS "capacidad",
+            b.remaining_volume_ml AS "restante",
+            ROUND((b.remaining_volume_ml\\:\\:numeric / b.volume_ml\\:\\:numeric) * 100, 1) AS "porcentaje"
+        FROM bottles b
+        JOIN products p ON b.product_id = p.id
+        JOIN warehouses w ON b.warehouse_id = w.id
+        WHERE b.status = 'DECANTADA'\s
+          AND b.volume_ml > 0
+          AND (b.remaining_volume_ml\\:\\:numeric / b.volume_ml\\:\\:numeric) <= :threshold
+        ORDER BY "porcentaje" ASC
+   \s""", nativeQuery = true)
+    List<Map<String, Object>> getInventoryAlertsRaw(@Param("threshold") Double threshold);
 }
