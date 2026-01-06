@@ -86,7 +86,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(Arrays.asList(
-                "https://reve-sale.vercel.app",
+                "https://reve-front.vercel.app",
                 "https://reveback-production.up.railway.app",
                 "http://localhost:5173",
                 "http://localhost:3000"
