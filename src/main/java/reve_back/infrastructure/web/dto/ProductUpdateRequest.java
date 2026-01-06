@@ -10,6 +10,7 @@ public record ProductUpdateRequest(
         String concentration,
         Double price,
         Integer unitVolumeMl,
+        Boolean allowPromotions,
         @NotEmpty(message = "Debes especificar al menos una botella/sucursal")
         List<BottleCreationRequest> bottles,
         List<DecantRequest> decants

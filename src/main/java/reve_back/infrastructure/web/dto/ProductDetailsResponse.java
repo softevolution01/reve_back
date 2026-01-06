@@ -10,6 +10,7 @@ public record ProductDetailsResponse(
         String concentration,
         Double price,
         Integer volumeProductsMl,
+        Boolean allowPromotions,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         List<BottleCreationResponse> bottles,
