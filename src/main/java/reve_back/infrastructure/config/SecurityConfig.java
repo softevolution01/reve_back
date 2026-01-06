@@ -104,7 +104,8 @@ public class SecurityConfig {
         config.setAllowedOrigins(Arrays.asList(
                 "https://reve-front.vercel.app",
                 "http://localhost:5173",
-                "http://localhost:3000"
+                "http://localhost:3000",
+                "https://reveback-production.up.railway.app"
         ));
 
         // Cabeceras explícitas (A veces "*" falla en navegadores estrictos)
