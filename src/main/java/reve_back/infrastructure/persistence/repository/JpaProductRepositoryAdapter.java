@@ -11,9 +11,12 @@ import reve_back.domain.model.Product;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
 import reve_back.infrastructure.persistence.jpa.SpringDataProductRepository;
 import reve_back.infrastructure.persistence.mapper.PersistenceMapper;
+import reve_back.infrastructure.web.dto.LabelItemDTO;
 import reve_back.infrastructure.web.dto.ProductSummaryDTO;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -76,5 +79,33 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
     @Override
     public boolean existsByBrandAndLineAndConcentrationAndVolumeProductsMlAndIdNot(String brand, String line, String concentration, Integer unitVolumeMl, Long id) {
         return springDataProductRepository.existsByBrandIgnoreCaseAndLineIgnoreCaseAndConcentrationIgnoreCaseAndVolumeProductsMlAndIdNot(brand, line, concentration, unitVolumeMl, id);
+    }
+
+    @Override
+    public List<LabelItemDTO> getLabelCatalog() {
+        // 1. Obtener datos crudos (Maps) de Spring Data
+        List<Map<String, Object>> rawRows = springDataProductRepository.findAllLabelItemsRaw();
+
+        // 2. Mapear manualmente a tu Record
+        return rawRows.stream().map(row -> {
+
+            String nombre = (String) row.get("nombre_completo");
+            String detalle = (String) row.get("detalle");
+            String codigo = (String) row.get("codigo_visual");
+
+            // Conversión segura de precio (Postgres puede devolver Double o BigDecimal)
+            Object precioObj = row.get("precio");
+            BigDecimal precio = BigDecimal.ZERO;
+
+            if (precioObj != null) {
+                // Convertir a String primero es la forma más segura de crear un BigDecimal
+                // desde cualquier tipo numérico (Double, Integer, etc.)
+                precio = new BigDecimal(precioObj.toString());
+            }
+
+            // Retornamos el Record
+            return new LabelItemDTO(nombre, detalle, codigo, precio);
+
+        }).toList();
     }
 }
