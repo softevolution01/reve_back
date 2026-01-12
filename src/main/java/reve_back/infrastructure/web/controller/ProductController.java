@@ -26,6 +26,7 @@ public class ProductController {
     private final DeleteProductUseCase deleteProductUseCase;
     private final ScanBarcodeUseCase scanBarcodeUseCase;
     private final SearchProductsUseCase searchProductsUseCase;
+    private final GetLabelCatalogUseCase getLabelCatalogUseCase;
 
     @GetMapping
     @PreAuthorize("hasAuthority('catalog:read:all')")
@@ -121,6 +122,12 @@ public class ProductController {
             @RequestParam("query") String query
     ) {
         return ResponseEntity.ok(searchProductsUseCase.searchProducts(query));
+    }
+
+    @GetMapping("/print")
+    @PreAuthorize("hasAuthority('catalog:delete')")
+    public ResponseEntity<List<LabelItemDTO>> getPrintData() {
+        return ResponseEntity.ok(getLabelCatalogUseCase.execute());
     }
 
 

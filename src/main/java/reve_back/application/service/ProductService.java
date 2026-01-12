@@ -14,13 +14,14 @@ import reve_back.infrastructure.mapper.ProductDtoMapper;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
 public class ProductService implements ListProductsUseCase, CreateProductUseCase,
-        GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase, ScanBarcodeUseCase, SearchProductsUseCase {
+        GetProductDetailsUseCase, UpdateProductUseCase, DeleteProductUseCase, ScanBarcodeUseCase, SearchProductsUseCase, GetLabelCatalogUseCase {
 
 
     private final ProductRepositoryPort productRepositoryPort;
@@ -364,5 +365,10 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         }
 
         return results;
+    }
+
+    @Override
+    public List<LabelItemDTO> execute() {
+        return productRepositoryPort.getLabelCatalog();
     }
 }
