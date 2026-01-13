@@ -32,6 +32,7 @@ public class SaleService implements CreateSaleUseCase {
     private final PaymentMethodsRepositoryPort paymentMethodRepositoryPort;
     private final InventoryMovementRepositoryPort inventoryMovementRepositoryPort;
     private final LoyaltyTiersRepositoryPort loyaltyTiersRepositoryPort;
+    private final UserRepositoryPort userRepositoryPort;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -44,8 +45,17 @@ public class SaleService implements CreateSaleUseCase {
     @Transactional(rollbackFor = Exception.class)
     public SaleResponse createSale(SaleCreationRequest request) {
         Long finalClientId = request.clientId() != null ? request.clientId() : 1L;
-        log.info(">>> INICIO PROCESO DE VENTA - BranchId: {}, UserId: {}, ClientId: {}",
-                request.branchId(), request.userId(), finalClientId);
+
+        User seller = userRepositoryPort.findById(request.userId())
+                .orElseThrow(() -> new RuntimeException("Usuario (Vendedor) no encontrado"));
+        String sellerName = seller.fullname();
+
+        Client client = clientRepositoryPort.findById(finalClientId)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+        String clientName = client.fullname();
+
+        log.info(">>> INICIO VENTA - BranchId: {}, Vendedor: {}, Cliente: {}",
+                request.branchId(), sellerName, clientName);
 
         Branch branch = branchRepositoryPort.findById(request.branchId())
                 .orElseThrow(() -> {
@@ -146,6 +156,8 @@ public class SaleService implements CreateSaleUseCase {
         BigDecimal totalBruto = BigDecimal.ZERO;
         BigDecimal totalSystemDiscountApplied = BigDecimal.ZERO;
 
+        BigDecimal totalLoyaltyAmount = BigDecimal.ZERO;
+
         for (SaleItem item : tempItems) {
             BigDecimal lineGrossTotal = item.unitPrice().multiply(new BigDecimal(item.quantity()));
 
@@ -162,6 +174,10 @@ public class SaleService implements CreateSaleUseCase {
 
             totalBruto = totalBruto.add(lineGrossTotal);
             totalSystemDiscountApplied = totalSystemDiscountApplied.add(item.systemDiscount());
+
+            if (item.decantPriceId() != null) {
+                totalLoyaltyAmount = totalLoyaltyAmount.add(lineNetTotal);
+            }
         }
 
         BigDecimal totalDiscountGlobal = totalManualDiscount.add(totalSystemDiscountApplied);
@@ -183,13 +199,24 @@ public class SaleService implements CreateSaleUseCase {
         }
 
         try {
-            updateLoyalty(finalClientId, totalNeto, triggerVipReset);
+            updateLoyalty(finalClientId, totalLoyaltyAmount, triggerVipReset);
         } catch (Exception e) {
             log.error("Error Loyalty: {}", e.getMessage());
         }
 
-        return new SaleResponse(savedSale.id(), savedSale.saleDate(), branch.name(), "Vendedor","Tef",
-                totalBruto, totalDiscountGlobal, totalSurcharge, totalNeto, totalFinalCharged, null);
+        return new SaleResponse(
+                savedSale.id(),
+                savedSale.saleDate(),
+                branch.name(),
+                sellerName,
+                clientName,
+                totalBruto,
+                totalDiscountGlobal,
+                totalSurcharge,
+                totalNeto,
+                totalFinalCharged,
+                null
+        );
     }
 
     private SaleItem processStockLogic(SaleItemRequest req, Long whId, Long userId) {
