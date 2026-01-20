@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +45,7 @@ public class SaleService implements CreateSaleUseCase {
 
     @Transactional(rollbackFor = Exception.class)
     public SaleResponse createSale(SaleCreationRequest request) {
+        // 1. Validaciones iniciales
         Long finalClientId = request.clientId() != null ? request.clientId() : 1L;
 
         User seller = userRepositoryPort.findById(request.userId())
@@ -52,19 +54,13 @@ public class SaleService implements CreateSaleUseCase {
 
         Client client = clientRepositoryPort.findById(finalClientId)
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
-        String clientName = client.fullname();
-
-        log.info(">>> INICIO VENTA - BranchId: {}, Vendedor: {}, Cliente: {}",
-                request.branchId(), sellerName, clientName);
+        String clientName = client.fullname(); // Obtenemos el nombre para la respuesta
 
         Branch branch = branchRepositoryPort.findById(request.branchId())
-                .orElseThrow(() -> {
-                    log.error("❌ Sede no encontrada: {}", request.branchId());
-                    return new RuntimeException("Sede no encontrada");
-                });
+                .orElseThrow(() -> new RuntimeException("Sede no encontrada"));
         Long warehouseId = branch.warehouseId();
 
-        // --- NUEVO: CÁLCULO PREVIO DE RECARGOS (Para cumplir con Stefany) ---
+        // 2. Procesamiento de Pagos y Cálculo de Recargos (4% u otros)
         List<SalePayment> salePayments = new ArrayList<>();
         BigDecimal totalSurcharge = BigDecimal.ZERO;
         Set<String> methodNames = new HashSet<>();
@@ -87,6 +83,7 @@ public class SaleService implements CreateSaleUseCase {
 
             salePayments.add(new SalePayment(null, pReq.paymentMethodId(), pm.name(), pReq.amount(), surcharge));
 
+            // Movimientos de caja (Efectivo)
             if (pm.name().equalsIgnoreCase("Efectivo")) {
                 Long destBranchId = Boolean.TRUE.equals(branch.isCashManagedCentralized()) ? 1L : branch.id();
                 CashMovement movement = new CashMovement(null, destBranchId, pReq.amount(),
@@ -94,9 +91,9 @@ public class SaleService implements CreateSaleUseCase {
                 cashMovementRepositoryPort.save(movement);
             }
         }
-        // Reconocer método enviado
         String paymentMethodName = (methodNames.size() > 1) ? "MIXTO" : methodNames.iterator().next();
 
+        // 3. Procesamiento de Items (Lógica de Stock y Descuentos)
         List<SaleItem> tempItems = new ArrayList<>();
         BigDecimal totalManualDiscount = BigDecimal.ZERO;
 
@@ -106,19 +103,20 @@ public class SaleService implements CreateSaleUseCase {
             BigDecimal itemManualDiscount = itemReq.manualDiscount() != null ? itemReq.manualDiscount() : BigDecimal.ZERO;
             totalManualDiscount = totalManualDiscount.add(itemManualDiscount);
 
-            SaleItem temp = new SaleItem(
+            // Subtotal preliminar
+            tempItems.add(new SaleItem(
                     null, domainItem.productId(), domainItem.decantPriceId(), domainItem.productName(), domainItem.productBrand(),
                     domainItem.quantity(), domainItem.unitPrice(),
                     BigDecimal.ZERO, // System discount placeholder
                     itemManualDiscount,
-                    BigDecimal.ZERO, // Final subtotal placeholder (lo calculamos luego)
+                    BigDecimal.ZERO, // Final subtotal placeholder
                     domainItem.volumeMlPerUnit(),
                     itemReq.blockedPromo() != null ? itemReq.blockedPromo() : false,
                     false, "NONE"
-            );
-            tempItems.add(temp);
+            ));
         }
 
+        // 4. Aplicación de Descuentos de Sistema (Promociones Globales)
         BigDecimal remainingSystemDiscount = request.systemDiscount() != null ? request.systemDiscount() : BigDecimal.ZERO;
 
         if (remainingSystemDiscount.compareTo(BigDecimal.ZERO) > 0) {
@@ -128,7 +126,6 @@ public class SaleService implements CreateSaleUseCase {
                     promoIndices.add(i);
                 }
             }
-
             promoIndices.sort(Comparator.comparing(i -> tempItems.get(i).unitPrice()));
 
             for (Integer index : promoIndices) {
@@ -136,15 +133,14 @@ public class SaleService implements CreateSaleUseCase {
 
                 SaleItem currentItem = tempItems.get(index);
                 BigDecimal lineGross = currentItem.unitPrice().multiply(new BigDecimal(currentItem.quantity()));
-
                 BigDecimal discountToApply = lineGross.min(remainingSystemDiscount);
 
                 tempItems.set(index, new SaleItem(
                         currentItem.id(), currentItem.productId(), currentItem.decantPriceId(), currentItem.productName(), currentItem.productBrand(),
                         currentItem.quantity(), currentItem.unitPrice(),
-                        discountToApply, // <--- AQUI SE INYECTA EL DESCUENTO CALCULADO
+                        discountToApply,
                         currentItem.manualDiscount(),
-                        BigDecimal.ZERO, // Aun no calculamos el neto final
+                        BigDecimal.ZERO,
                         currentItem.volumeMlPerUnit(), currentItem.isPromoLocked(), currentItem.isPromoForced(), currentItem.promoStrategyApplied()
                 ));
 
@@ -152,15 +148,16 @@ public class SaleService implements CreateSaleUseCase {
             }
         }
 
+        // 5. Cálculo de Totales Finales
         List<SaleItem> finalSaleItems = new ArrayList<>();
         BigDecimal totalBruto = BigDecimal.ZERO;
         BigDecimal totalSystemDiscountApplied = BigDecimal.ZERO;
-
         BigDecimal totalLoyaltyAmount = BigDecimal.ZERO;
 
         for (SaleItem item : tempItems) {
             BigDecimal lineGrossTotal = item.unitPrice().multiply(new BigDecimal(item.quantity()));
 
+            // Total Neto por línea (Precio x Cantidad - Descuentos)
             BigDecimal lineNetTotal = lineGrossTotal
                     .subtract(item.manualDiscount())
                     .subtract(item.systemDiscount());
@@ -168,7 +165,7 @@ public class SaleService implements CreateSaleUseCase {
             finalSaleItems.add(new SaleItem(
                     item.id(), item.productId(), item.decantPriceId(), item.productName(), item.productBrand(),
                     item.quantity(), item.unitPrice(), item.systemDiscount(), item.manualDiscount(),
-                    lineNetTotal,
+                    lineNetTotal, // Guardamos el neto real
                     item.volumeMlPerUnit(), item.isPromoLocked(), item.isPromoForced(), item.promoStrategyApplied()
             ));
 
@@ -181,9 +178,12 @@ public class SaleService implements CreateSaleUseCase {
         }
 
         BigDecimal totalDiscountGlobal = totalManualDiscount.add(totalSystemDiscountApplied);
-        BigDecimal totalNeto = totalBruto.subtract(totalDiscountGlobal);
-        BigDecimal totalFinalCharged = totalNeto.add(totalSurcharge);
 
+        BigDecimal totalNetoMerchandise = totalBruto.subtract(totalDiscountGlobal);
+
+        BigDecimal totalFinalCharged = totalNetoMerchandise.add(totalSurcharge);
+
+        // 6. Guardado en Base de Datos
         Sale saleToSave = new Sale(null, LocalDateTime.now(), branch.id(), request.userId(), finalClientId,
                 null, totalBruto, totalDiscountGlobal, new BigDecimal("0.18"), totalSurcharge, totalFinalCharged,
                 paymentMethodName, finalSaleItems, salePayments);
@@ -191,18 +191,36 @@ public class SaleService implements CreateSaleUseCase {
         Sale savedSale = salesRepositoryPort.save(saleToSave);
         log.info("✅ Venta Guardada con ID: {}", savedSale.id());
 
-        boolean triggerVipReset = false;
         try {
-            triggerVipReset = updateClientVipStatus(finalClientId);
-        } catch (Exception e) {
-            log.error("Error VIP: {}", e.getMessage());
-        }
-
-        try {
+            boolean triggerVipReset = updateClientVipStatus(finalClientId);
             updateLoyalty(finalClientId, totalLoyaltyAmount, triggerVipReset);
         } catch (Exception e) {
-            log.error("Error Loyalty: {}", e.getMessage());
+            log.error("Error Post-Venta: {}", e.getMessage());
         }
+
+        List<SaleItemResponse> itemsResponse = finalSaleItems.stream()
+                .map(item -> {
+                    String typeDisplay = "Botella";
+                    if (item.volumeMlPerUnit() != null) {
+                        typeDisplay = item.volumeMlPerUnit().intValue() + "ml";
+                    }
+
+                    BigDecimal totalDiscLine = (item.manualDiscount() == null ? BigDecimal.ZERO : item.manualDiscount())
+                            .add(item.systemDiscount() == null ? BigDecimal.ZERO : item.systemDiscount());
+
+                    return new SaleItemResponse(
+                            item.productName(),
+                            typeDisplay,
+                            item.quantity(),
+                            item.unitPrice(),
+                            item.finalSubtotal(), // Precio final de la línea
+                            totalDiscLine,
+                            item.isPromoForced()
+                    );
+                })
+                .collect(Collectors.toList());
+
+        BigDecimal baseImponible = totalNetoMerchandise.divide(new BigDecimal("1.18"), 2, RoundingMode.HALF_UP);
 
         return new SaleResponse(
                 savedSale.id(),
@@ -213,9 +231,9 @@ public class SaleService implements CreateSaleUseCase {
                 totalBruto,
                 totalDiscountGlobal,
                 totalSurcharge,
-                totalNeto,
                 totalFinalCharged,
-                null
+                baseImponible,
+                itemsResponse
         );
     }
 
