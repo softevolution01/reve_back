@@ -56,17 +56,16 @@ public class ContractService {
 
     @Transactional(rollbackFor = Exception.class)
     public void createContract(ContractCreationRequest request) {
-        // CORRECCIÓN 2: Usamos el Builder para crear la referencia de BranchEntity
+        // 1. Referencias y Validaciones Iniciales
         BranchEntity branchRef = BranchEntity.builder().id(request.branchId()).build();
 
-        // Recuperamos datos para lógica de stock
         var branchDomain = branchRepositoryPort.findById(request.branchId()).orElseThrow();
         Long warehouseId = branchDomain.warehouseId();
 
         ProductEntity product = productRepository.findById(request.productId())
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-        // Lógica de Stock
+        // 2. Obtener Stock Disponible (Solo Botellas Selladas)
         List<BottleEntity> stock = bottleRepository.findByProductId(request.productId());
         List<BottleEntity> availableBottles = stock.stream()
                 .filter(b -> b.getWarehouse().getId().equals(warehouseId))
@@ -81,19 +80,40 @@ public class ContractService {
             throw new RuntimeException("Stock insuficiente para contrato. Disponible: " + quantityFound);
         }
 
-        // Descontar Stock
+        // 3. Descontar Stock (CANTIDAD + VOLUMEN + VOLUMEN RESTANTE)
+        // Obtenemos el volumen unitario del producto (ej: 100ml)
+        int volumePerUnit = product.getVolumeProductsMl();
+
         for (BottleEntity bottle : availableBottles) {
             if (quantityNeeded <= 0) break;
 
-            int take = Math.min(bottle.getQuantity(), quantityNeeded);
-            int newQty = bottle.getQuantity() - take;
+            int currentQty = bottle.getQuantity();
+            int take = Math.min(currentQty, quantityNeeded);
 
+            // Calculamos la nueva cantidad
+            int newQty = currentQty - take;
+
+            // NUEVO: Recalculamos volúmenes basados en la nueva cantidad
+            // Si quedan 4 botellas de 100ml, el volumen debe ser 400ml
+            int newVolumeMl = newQty * volumePerUnit;
+            int newRemainingVolumeMl = newVolumeMl; // En botellas selladas, remanente = total
+
+            // Actualizamos la Entidad
             bottle.setQuantity(newQty);
+            bottle.setVolumeMl(newVolumeMl);                  // <--- Actualización Clave
+            bottle.setRemainingVolumeMl(newRemainingVolumeMl);// <--- Actualización Clave
+
+            // Verificar si se agotó este lote/botella
             if (newQty == 0) {
                 bottle.setStatus(reve_back.domain.model.BottlesStatus.AGOTADA);
+                // Por seguridad, si es 0 cantidad, forzamos volumen a 0 (aunque el cálculo arriba ya lo hace)
+                bottle.setVolumeMl(0);
+                bottle.setRemainingVolumeMl(0);
             }
+
             bottleRepository.save(bottle);
 
+            // Registrar el movimiento en el historial
             reve_back.domain.model.InventoryMovement invMov = new reve_back.domain.model.InventoryMovement(
                     null, bottle.getId(), take, "EGRESO", "UNIT", "CONTRATO", request.userId(), LocalDateTime.now()
             );
@@ -102,16 +122,16 @@ public class ContractService {
             quantityNeeded -= take;
         }
 
-        // Guardar Contrato
+        // 4. Cálculos Financieros del Contrato
         BigDecimal priceBase = new BigDecimal(product.getPrice()).multiply(new BigDecimal(request.quantity()));
         BigDecimal finalPrice = priceBase.subtract(request.discount());
         BigDecimal pendingBalance = finalPrice.subtract(request.advancePayment());
 
-        // CORRECCIÓN 3: Usamos Builders para User y Client para evitar errores de constructor
+        // 5. Guardar Contrato
         ContractEntity contract = ContractEntity.builder()
                 .client(ClientEntity.builder().id(request.clientId()).build())
                 .user(UserEntity.builder().id(request.userId()).build())
-                .branch(branchRef) // Pasamos la entidad creada con el builder arriba
+                .branch(branchRef)
                 .product(product)
                 .quantity(request.quantity())
                 .startDate(request.startDate())
@@ -126,7 +146,7 @@ public class ContractService {
 
         ContractEntity savedContract = contractRepository.save(contract);
 
-        // Caja
+        // 6. Registrar Movimiento de Caja (Si hubo adelanto)
         if (request.advancePayment().compareTo(BigDecimal.ZERO) > 0) {
             reve_back.domain.model.CashMovement cashMov = new reve_back.domain.model.CashMovement(
                     null, request.branchId(), request.advancePayment(), "INGRESO",
