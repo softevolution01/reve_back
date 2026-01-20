@@ -3,12 +3,14 @@ package reve_back.infrastructure.persistence.jpa;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import reve_back.domain.model.Promotion;
 import reve_back.infrastructure.persistence.entity.PromotionEntity;
 
 import java.util.List;
 import java.util.Optional;
 
+@RepositoryRestResource(exported = false)
 public interface SpringDataPromotionRepository extends JpaRepository<PromotionEntity,Long> {
     @Query("SELECT p FROM PromotionEntity p " +
             "LEFT JOIN FETCH p.rules " +
