@@ -185,11 +185,21 @@ public class ContractService {
 
         if (contract.getPendingBalance().compareTo(BigDecimal.ZERO) > 0) {
             reve_back.domain.model.CashMovement cashMov = new reve_back.domain.model.CashMovement(
-                    null, contract.getBranch().getId(), contract.getPendingBalance(), "INGRESO",
-                    "FINALIZACION CONTRATO #" + contract.getId(), userId, null, LocalDateTime.now()
+                    null,
+                    contract.getBranch().getId(),
+                    contract.getPendingBalance(),
+                    "INGRESO",
+                    "FINALIZACION CONTRATO #" + contract.getId(),
+                    userId,
+                    null,
+                    LocalDateTime.now()
             );
             cashMovementRepositoryPort.save(cashMov);
         }
+
+        contract.setAdvancePayment(contract.getFinalPrice());
+
+        contract.setPendingBalance(BigDecimal.ZERO);
 
         contract.setStatus("FINALIZADO");
         contractRepository.save(contract);
