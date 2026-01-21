@@ -45,7 +45,6 @@ public class SaleService implements CreateSaleUseCase {
 
     @Transactional(rollbackFor = Exception.class)
     public SaleResponse createSale(SaleCreationRequest request) {
-        // 1. Validaciones iniciales
         Long finalClientId = request.clientId() != null ? request.clientId() : 1L;
 
         User seller = userRepositoryPort.findById(request.userId())
@@ -55,12 +54,12 @@ public class SaleService implements CreateSaleUseCase {
         Client client = clientRepositoryPort.findById(finalClientId)
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
         String clientName = client.fullname(); // Obtenemos el nombre para la respuesta
+        String clientDNI = client.dni();
 
         Branch branch = branchRepositoryPort.findById(request.branchId())
                 .orElseThrow(() -> new RuntimeException("Sede no encontrada"));
         Long warehouseId = branch.warehouseId();
 
-        // 2. Procesamiento de Pagos y Cálculo de Recargos (4% u otros)
         List<SalePayment> salePayments = new ArrayList<>();
         BigDecimal totalSurcharge = BigDecimal.ZERO;
         Set<String> methodNames = new HashSet<>();
@@ -105,7 +104,11 @@ public class SaleService implements CreateSaleUseCase {
 
             // Subtotal preliminar
             tempItems.add(new SaleItem(
-                    null, domainItem.productId(), domainItem.decantPriceId(), domainItem.productName(), domainItem.productBrand(),
+                    null,
+                    domainItem.productId(),
+                    domainItem.decantPriceId(),
+                    domainItem.productName(),
+                    domainItem.productBrand(),
                     domainItem.quantity(), domainItem.unitPrice(),
                     BigDecimal.ZERO, // System discount placeholder
                     itemManualDiscount,
@@ -200,20 +203,28 @@ public class SaleService implements CreateSaleUseCase {
 
         List<SaleItemResponse> itemsResponse = finalSaleItems.stream()
                 .map(item -> {
+                    // A. Tipo Visual
                     String typeDisplay = "Botella";
                     if (item.volumeMlPerUnit() != null) {
                         typeDisplay = item.volumeMlPerUnit().intValue() + "ml";
                     }
 
+                    String safeProductName = item.productName() != null ? item.productName() : "SIN NOMBRE";
+
+                    String prefix = (item.volumeMlPerUnit() == null) ? "BT" : "DC";
+
+                    String finalDisplayName = prefix + " " + safeProductName;
+
+                    // C. Descuento Linea
                     BigDecimal totalDiscLine = (item.manualDiscount() == null ? BigDecimal.ZERO : item.manualDiscount())
                             .add(item.systemDiscount() == null ? BigDecimal.ZERO : item.systemDiscount());
 
                     return new SaleItemResponse(
-                            item.productName(),
+                            finalDisplayName, // <--- Aquí va el nombre con prefijo
                             typeDisplay,
                             item.quantity(),
                             item.unitPrice(),
-                            item.finalSubtotal(), // Precio final de la línea
+                            item.finalSubtotal(),
                             totalDiscLine,
                             item.isPromoForced()
                     );
@@ -228,11 +239,13 @@ public class SaleService implements CreateSaleUseCase {
                 branch.name(),
                 sellerName,
                 clientName,
+                clientDNI,
                 totalBruto,
                 totalDiscountGlobal,
                 totalSurcharge,
                 totalFinalCharged,
                 baseImponible,
+                paymentMethodName, // <--- AGREGADO: Método de Pago
                 itemsResponse
         );
     }
@@ -275,6 +288,9 @@ public class SaleService implements CreateSaleUseCase {
         log.info("    Botella Decantada encontrada: ID {}, Status: {}, Remanente Actual: {}ml",
                 decantBottle.id(), decantBottle.status(), decantBottle.remainingVolumeMl());
 
+        Product product = productRepositoryPort.findById(dp.productId())
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
         // Verificación de estado agotado previo
         if ("DECANT_AGOTADA".equalsIgnoreCase(decantBottle.status()) || decantBottle.remainingVolumeMl() == 0) {
             log.info("    ⚠️ Botella estaba AGOTADA. Iniciando reabastecimiento forzoso...");
@@ -315,8 +331,7 @@ public class SaleService implements CreateSaleUseCase {
 
             registerInventoryMovement(decantBottle.id(), req.quantity(), "ML", userId);
 
-        }
-        else {
+        } else {
             log.info("    >> ESCENARIO B: Stock suficiente.");
             int nextRemaining = currentRem - volumeNeeded;
 
@@ -331,8 +346,8 @@ public class SaleService implements CreateSaleUseCase {
             registerInventoryMovement(decantBottle.id(), req.quantity(), "ML", userId);
         }
 
-        return new SaleItem(null, null, dp.id(), null, null, req.quantity(), req.price(),
-                BigDecimal.ZERO, BigDecimal.ZERO, null, dp.volumeMl(), false, false, "NONE");
+        return new SaleItem(null, dp.productId(), dp.id(), product.brand()+product.line(), null, req.quantity(), req.price(),
+                BigDecimal.ZERO, BigDecimal.ZERO, null, dp.volumeMl(), req.blockedPromo(), req.forcePromo(), "NONE");
     }
 
     private void replenishDecantBottle(Bottle targetDecantBottle, Long userId) {
