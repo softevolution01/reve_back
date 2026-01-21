@@ -10,10 +10,12 @@ public record SaleResponse(
         String branchName,
         String sellerName, // Sugerencia extra: devolver nombre del vendedor en vez de ID
         String clientName, // <--- AGREGAR ESTO (Importante)
+        String clientDNI,
         BigDecimal totalBruto,
         BigDecimal totalDiscount,
         BigDecimal totalSurcharge,
         BigDecimal totalNeto,
         BigDecimal baseImponibleIGV,
+        String paymentMethodName,
         List<SaleItemResponse> items
 ) {}
