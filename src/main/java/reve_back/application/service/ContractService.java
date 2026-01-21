@@ -157,8 +157,10 @@ public class ContractService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ContractListResponse> getAllContracts(int page, int size) {
-        return contractRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
+    public ContractPageResponse getAllContracts(int page, int size) {
+        Page<ContractEntity> contractPage = contractRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
+
+        List<ContractListResponse> items = contractPage.getContent().stream()
                 .map(c -> new ContractListResponse(
                         c.getId(),
                         c.getClient().getFullname(),
@@ -171,7 +173,16 @@ public class ContractService {
                         c.getAdvancePayment(),
                         c.getPendingBalance(),
                         c.getStatus()
-                ));
+                ))
+                .toList();
+
+        return new ContractPageResponse(
+                items,
+                contractPage.getTotalElements(),
+                contractPage.getTotalPages(),
+                contractPage.getNumber(),
+                contractPage.getSize()
+        );
     }
 
     @Transactional

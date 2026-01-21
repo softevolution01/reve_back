@@ -38,7 +38,7 @@ public class ContractController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<ContractListResponse>> listContracts(
+    public ResponseEntity<ContractPageResponse> listContracts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
@@ -48,7 +48,7 @@ public class ContractController {
     @PostMapping("/{id}/finalize")
     public ResponseEntity<?> finalizeContract(
             @PathVariable Long id,
-            @RequestParam Long userId // Quién lo finaliza
+            @RequestParam Long userId
     ) {
         try {
             contractService.finalizeContract(id, userId);
