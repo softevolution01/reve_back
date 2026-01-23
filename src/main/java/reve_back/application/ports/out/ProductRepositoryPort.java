@@ -23,4 +23,6 @@ public interface ProductRepositoryPort {
 
     List<LabelItemDTO> getLabelCatalog();
 
+    Page<ProductSummaryDTO> searchByBrandOrLine(String query, int page, int size);
+
 }

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.*;
 import reve_back.infrastructure.persistence.enums.global.MovementUnit;
+import reve_back.infrastructure.web.dto.ProductSummaryDTO;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -71,6 +72,21 @@ public class PersistenceMapper {
         entity.setActive(domain.isActive());
         entity.setAllowPromotions(domain.allowPromotions());
         return entity;
+    }
+
+    public ProductSummaryDTO toSummaryDto(ProductEntity entity) {
+        Product domain = toDomain(entity);
+
+        if (domain == null) return null;
+
+        return new ProductSummaryDTO(
+                domain.id(),
+                domain.brand(),
+                domain.line(),
+                domain.concentration(),
+                domain.price(),
+                domain.volumeProductsMl()
+        );
     }
 
 

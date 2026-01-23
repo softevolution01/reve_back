@@ -32,9 +32,10 @@ public class ProductController {
     @PreAuthorize("hasAuthority('catalog:read:all')")
     public ResponseEntity<ProductPageResponse> getProducts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String query) {
 
-        ProductPageResponse response = listProductsUseCase.findAll(page, size);
+        ProductPageResponse response = listProductsUseCase.findAll(page, size, query);
         return ResponseEntity.ok(response);
     }
 
