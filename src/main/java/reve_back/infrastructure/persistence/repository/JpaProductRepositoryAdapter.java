@@ -36,25 +36,9 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
 
     @Override
     public Page<ProductSummaryDTO> findAll(int page, int size) {
-        // 1. Creamos el objeto de paginación
         Pageable pageable = PageRequest.of(page, size);
-
-        // 2. Usamos el método que ya tienes en tu SpringDataProductRepository
         Page<ProductEntity> productPage = springDataProductRepository.findByIsActiveTrue(pageable);
-
-        // 3. Mapeamos de Entity a el DTO de resumen (Summary)
-        List<ProductSummaryDTO> items = productPage.getContent().stream()
-                .map(entity -> new ProductSummaryDTO(
-                        entity.getId(),
-                        entity.getBrand(),
-                        entity.getLine(),
-                        entity.getConcentration(),
-                        entity.getPrice(), // BigDecimal
-                        entity.getVolumeProductsMl()))
-                .toList();
-
-        // 4. Devolvemos una nueva página con los DTOs
-        return new PageImpl<>(items, pageable, productPage.getTotalElements());
+        return productPage.map(mapper::toSummaryDto);
     }
 
     @Override
@@ -107,5 +91,12 @@ public class JpaProductRepositoryAdapter implements ProductRepositoryPort {
             return new LabelItemDTO(nombre, detalle, codigo, precio);
 
         }).toList();
+    }
+
+    @Override
+    public Page<ProductSummaryDTO> searchByBrandOrLine(String query, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<ProductEntity> entityPage = springDataProductRepository.searchByQuery(query, pageable);
+        return entityPage.map(mapper::toSummaryDto);
     }
 }

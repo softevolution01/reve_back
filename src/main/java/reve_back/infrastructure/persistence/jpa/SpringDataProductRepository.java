@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import reve_back.infrastructure.persistence.entity.ProductEntity;
 
@@ -56,4 +57,10 @@ public interface SpringDataProductRepository extends JpaRepository<ProductEntity
         ORDER BY brand, line, volume_ml
    \s""", nativeQuery = true)
     List<Map<String, Object>> findAllLabelItemsRaw();
+
+    @Query("SELECT p FROM ProductEntity p WHERE " +
+            "(LOWER(p.brand) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "LOWER(p.line) LIKE LOWER(CONCAT('%', :query, '%'))) " +
+            "AND p.isActive = true")
+    Page<ProductEntity> searchByQuery(@Param("query") String query, Pageable pageable);
 }

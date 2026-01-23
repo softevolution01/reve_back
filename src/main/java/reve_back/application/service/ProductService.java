@@ -127,12 +127,20 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
 
     @Override
     @Transactional(readOnly = true)
-    public ProductPageResponse findAll(int page, int size) {
+    public ProductPageResponse findAll(int page, int size, String query) {
         // 1. Obtener IDs de sedes autorizadas para el usuario actual
         Set<Long> userBranchIds = getAuthorizedBranchIds();
 
         // 2. Obtener la página de productos desde el puerto
-        Page<ProductSummaryDTO> productPage = productRepositoryPort.findAll(page, size);
+        Page<ProductSummaryDTO> productPage;
+
+        if (query != null && !query.trim().isEmpty()) {
+            // SI HAY QUERY: Buscamos por marca o línea
+            productPage = productRepositoryPort.searchByBrandOrLine(query.trim(), page, size);
+        } else {
+            // NO HAY QUERY: Traemos todo (Tu lógica original)
+            productPage = productRepositoryPort.findAll(page, size);
+        }
 
         // 3. Procesar cada producto para incluir sus botellas y decants
         List<ProductListResponse> items = productPage.getContent().stream()
