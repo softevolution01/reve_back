@@ -16,5 +16,5 @@ public interface BottleRepositoryPort {
     Bottle save(Bottle bottle);
     List<Bottle> searchActiveByProductName(String term);
     Integer calculateTotalStockByProductId(Long productId);
-
+    Optional<Bottle> findSellableBottle(Long productId, Long warehouseId);
 }
