@@ -107,4 +107,11 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
         // Llamamos a la query nativa/JPQL que acabamos de crear
         return springDataBottleRepository.sumTotalStockByProduct(productId);
     }
+
+    @Override
+    public Optional<Bottle> findSellableBottle(Long productId, Long warehouseId) {
+        return springDataBottleRepository
+                .findSellableBottleForSale(productId, warehouseId)
+                .map(mapper::toDomain);
+    }
 }

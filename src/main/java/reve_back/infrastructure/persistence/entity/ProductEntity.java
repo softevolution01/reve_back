@@ -35,6 +35,9 @@ public class ProductEntity {
     @Column(name = "volume_products_ml", nullable = false)
     private Integer volumeProductsMl;
 
+    @Column
+    private String gender;
+
     @Column(name = "is_active")
     private boolean isActive = true;
 

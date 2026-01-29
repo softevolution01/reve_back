@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
+import reve_back.domain.model.Bottle;
 import reve_back.domain.model.BottlesStatus;
 import reve_back.infrastructure.persistence.entity.BottleEntity;
 
@@ -51,4 +52,12 @@ public interface SpringDataBottleRepository extends JpaRepository<BottleEntity,L
         ORDER BY "porcentaje" ASC
    \s""", nativeQuery = true)
     List<Map<String, Object>> getInventoryAlertsRaw(@Param("threshold") Double threshold);
+
+    @Query("SELECT b FROM BottleEntity b " +
+            "WHERE b.product.id = :productId " +
+            "AND b.warehouse.id = :warehouseId " +
+            "AND b.status = 'SELLADA' " +
+            "AND b.barcode IS NOT NULL ")
+    Optional<BottleEntity> findSellableBottleForSale(@Param("productId") Long productId,
+                                                     @Param("warehouseId") Long warehouseId);
 }
