@@ -220,7 +220,7 @@ public class SaleService implements CreateSaleUseCase {
                             .add(item.systemDiscount() == null ? BigDecimal.ZERO : item.systemDiscount());
 
                     return new SaleItemResponse(
-                            finalDisplayName, // <--- Aquí va el nombre con prefijo
+                            finalDisplayName,
                             typeDisplay,
                             item.quantity(),
                             item.unitPrice(),
@@ -252,22 +252,54 @@ public class SaleService implements CreateSaleUseCase {
 
     private SaleItem processStockLogic(SaleItemRequest req, Long whId, Long userId) {
         if ("BOTELLA".equalsIgnoreCase(req.tipoVendible())) {
-            log.info("Lógica de Stock: BOTELLA SELLADA. ID: {}", req.idInventario());
+            log.info("Lógica Directa: Buscando botella SELLADA basada en referencia ID: {}", req.idInventario());
 
-            Bottle b = bottleRepositoryPort.findById(req.idInventario())
-                    .orElseThrow(() -> new RuntimeException("Botella no encontrada"));
+            Product product = productRepositoryPort.findById(req.idInventario())
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado para recalcular stock."));
 
-            int newQty = b.quantity() - req.quantity();
-            log.info("    Descontando Botella ID {}. Cantidad Anterior: {}, Descuento: {}, Nueva: {}",
-                    b.id(), b.quantity(), req.quantity(), newQty);
+            Long productId = req.idInventario();
 
-            bottleRepositoryPort.save(new Bottle(b.id(), b.productId(), whId,
-                    newQty <= 0 ? "AGOTADA" : "SELLADA", b.barcode(), b.volumeMl(), b.remainingVolumeMl(), newQty));
+            log.info("🛒 Venta Iniciada. Producto ID: {} (Ref enviada: {}) Almacen ID: {}", productId, req.idInventario(), whId);
 
-            registerInventoryMovement(b.id(), req.quantity(), "UNIT", userId);
+            Bottle targetBottle = bottleRepositoryPort.findSellableBottle(productId, whId)
+                    .orElseThrow(() -> new RuntimeException(
+                            "No hay stock SELLADO disponible para el producto ID " + productId + " en esta sede."
+                    ));
 
-            return new SaleItem(null, b.productId(), null, null, null, req.quantity(), req.price(),
-                    BigDecimal.ZERO, BigDecimal.ZERO, null, b.volumeMl(), false, false, "NONE");
+            log.info("✅ Botella Seleccionada para Descuento: ID {} | Barcode {} | Stock Actual: {}",
+                    targetBottle.id(), targetBottle.barcode(), targetBottle.quantity());
+
+
+            if (targetBottle.quantity() < req.quantity()) {
+                throw new RuntimeException(String.format(
+                        "Stock Insuficiente. Disponible: %d, Solicitado: %d",
+                        targetBottle.quantity(), req.quantity()
+                ));
+            }
+
+            int newQuantity = targetBottle.quantity() - req.quantity();
+            boolean isDepleted = newQuantity <= 0;
+            int newVolumen = targetBottle.volumeMl() - product.volumeProductsMl()* req.quantity();
+
+
+            Bottle updatedBottle = new Bottle(
+                    targetBottle.id(),
+                    targetBottle.productId(),
+                    whId,
+                    isDepleted ? "AGOTADA" : "SELLADA",
+                    targetBottle.barcode(),
+                    newVolumen,
+                    isDepleted ? 0 : newVolumen,
+                    newQuantity
+            );
+
+            bottleRepositoryPort.save(updatedBottle);
+
+            registerInventoryMovement(targetBottle.id(), req.quantity(), "UNIT", userId);
+
+            return new SaleItem(null, productId, null, null, null,
+                    req.quantity(), req.price(), BigDecimal.ZERO, BigDecimal.ZERO,
+                    null, targetBottle.volumeMl(), false, false, "NONE");
         } else {
             log.info("Lógica de Stock: DECANT (Por ML). ID Precio Decant: {}", req.idInventario());
             return handleDecantStock(req, whId, userId);
@@ -346,7 +378,7 @@ public class SaleService implements CreateSaleUseCase {
             registerInventoryMovement(decantBottle.id(), req.quantity(), "ML", userId);
         }
 
-        return new SaleItem(null, dp.productId(), dp.id(), product.brand()+product.line(), null, req.quantity(), req.price(),
+        return new SaleItem(null, dp.productId(), dp.id(), product.brand() + product.line(), null, req.quantity(), req.price(),
                 BigDecimal.ZERO, BigDecimal.ZERO, null, dp.volumeMl(), req.blockedPromo(), req.forcePromo(), "NONE");
     }
 
