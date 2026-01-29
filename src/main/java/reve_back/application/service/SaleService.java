@@ -110,9 +110,9 @@ public class SaleService implements CreateSaleUseCase {
                     domainItem.productName(),
                     domainItem.productBrand(),
                     domainItem.quantity(), domainItem.unitPrice(),
-                    BigDecimal.ZERO, // System discount placeholder
+                    BigDecimal.ZERO,
                     itemManualDiscount,
-                    BigDecimal.ZERO, // Final subtotal placeholder
+                    BigDecimal.ZERO,
                     domainItem.volumeMlPerUnit(),
                     itemReq.blockedPromo() != null ? itemReq.blockedPromo() : false,
                     false, "NONE"
@@ -211,7 +211,7 @@ public class SaleService implements CreateSaleUseCase {
 
                     String safeProductName = item.productName() != null ? item.productName() : "SIN NOMBRE";
 
-                    String prefix = (item.volumeMlPerUnit() == null) ? "BT" : "DC";
+                    String prefix = (item.decantPriceId() == null) ? "BT " : "DC ";
 
                     String finalDisplayName = prefix + " " + safeProductName;
 
@@ -297,9 +297,9 @@ public class SaleService implements CreateSaleUseCase {
 
             registerInventoryMovement(targetBottle.id(), req.quantity(), "UNIT", userId);
 
-            return new SaleItem(null, productId, null, null, null,
+            return new SaleItem(null, productId, null, product.brand()+ " "+product.line(), null,
                     req.quantity(), req.price(), BigDecimal.ZERO, BigDecimal.ZERO,
-                    null, targetBottle.volumeMl(), false, false, "NONE");
+                    null, product.volumeProductsMl(), false, false, "NONE");
         } else {
             log.info("Lógica de Stock: DECANT (Por ML). ID Precio Decant: {}", req.idInventario());
             return handleDecantStock(req, whId, userId);
@@ -378,7 +378,7 @@ public class SaleService implements CreateSaleUseCase {
             registerInventoryMovement(decantBottle.id(), req.quantity(), "ML", userId);
         }
 
-        return new SaleItem(null, dp.productId(), dp.id(), product.brand() + product.line(), null, req.quantity(), req.price(),
+        return new SaleItem(null, dp.productId(), dp.id(), product.brand() +" "+ product.line(), null, req.quantity(), req.price(),
                 BigDecimal.ZERO, BigDecimal.ZERO, null, dp.volumeMl(), req.blockedPromo(), req.forcePromo(), "NONE");
     }
 
