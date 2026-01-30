@@ -12,4 +12,5 @@ public interface SalesRepositoryPort {
 
     Sale save(Sale sale);
     Optional<Sale> findById(Long id);
+    BigDecimal sumCashSalesBySessionId(Long sessionId);
 }
