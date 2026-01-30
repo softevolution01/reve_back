@@ -7,10 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.ManageCashSessionUseCase;
 import reve_back.application.ports.out.*;
-import reve_back.domain.model.BottlesStatus;
-import reve_back.domain.model.Branch;
-import reve_back.domain.model.CashMovement;
-import reve_back.domain.model.InventoryMovement;
+import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.*;
 import reve_back.infrastructure.persistence.jpa.*;
 import reve_back.infrastructure.web.dto.*;
@@ -32,6 +29,7 @@ public class ContractService {
     private final ManageCashSessionUseCase manageCashSessionUseCase; // <--- CLAVE PARA LA CAJA
     private final InventoryMovementRepositoryPort inventoryMovementRepositoryPort;
     private final BranchRepositoryPort branchRepositoryPort;
+    private final SprigDataPaymentMethodRepository sprigDataPaymentMethodRepository;
 
     /**
      * Busca productos disponibles para contrato en el almacén de la sucursal.
@@ -163,16 +161,18 @@ public class ContractService {
                 .build();
 
         ContractEntity savedContract = contractRepository.save(contract);
+        PaymentMethodEntity pm = sprigDataPaymentMethodRepository.findById(request.paymentMethodId())
+                .orElseThrow(() -> new RuntimeException("Método no encontrado"));
 
         // 6. REGISTRAR CAJA (ADELANTO) - USANDO EL SERVICIO CENTRALIZADO
         if (request.advancePayment().compareTo(BigDecimal.ZERO) > 0) {
             manageCashSessionUseCase.registerMovement(
                     request.branchId(),
                     request.userId(),
-                    "INGRESO",
+                    "VENTA", // O "INGRESO CONTRATO"
                     request.advancePayment(),
-                    "ADELANTO CONTRATO #" + savedContract.getId(),
-                    " "
+                    "Adelanto Contrato #" + savedContract.getId(),
+                    pm.getName()
             );
         }
     }
@@ -202,27 +202,34 @@ public class ContractService {
      * Finaliza un contrato y registra el cobro del saldo restante en caja.
      */
     @Transactional
-    public void finalizeContract(Long contractId, Long userId) {
+    public void finalizeContract(Long contractId, Long userId, Long paymentMethodId) {
+
         ContractEntity contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new RuntimeException("Contrato no encontrado"));
+
+        // 2. BUSCAMOS EL MÉTODO DE PAGO
+        PaymentMethodEntity pm = sprigDataPaymentMethodRepository.findById(paymentMethodId)
+                .orElseThrow(() -> new RuntimeException("Método de pago no encontrado"));
 
         if (!"PENDIENTE".equalsIgnoreCase(contract.getStatus())) {
             throw new RuntimeException("El contrato no está pendiente.");
         }
 
-        // 7. REGISTRAR CAJA (SALDO PENDIENTE) - USANDO EL SERVICIO CENTRALIZADO
+        // 3. REGISTRAR CAJA SI HAY SALDO PENDIENTE
         if (contract.getPendingBalance().compareTo(BigDecimal.ZERO) > 0) {
+
             manageCashSessionUseCase.registerMovement(
                     contract.getBranch().getId(),
                     userId,
-                    "INGRESO",
+                    "VENTA",
                     contract.getPendingBalance(),
-                    "FINALIZACION CONTRATO #" + contract.getId(),
-                    " "
+                    "FINALIZACION CONTRATO #" + contract.getId() + " (Saldo)",
+                    pm.getName()
             );
         }
 
         contract.setStatus("FINALIZADO");
+        contract.setPendingBalance(BigDecimal.ZERO); // Es buena práctica dejar el saldo en 0
         contractRepository.save(contract);
     }
 }

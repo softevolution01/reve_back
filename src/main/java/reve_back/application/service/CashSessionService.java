@@ -4,17 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reve_back.application.ports.in.ManageCashSessionUseCase;
-import reve_back.application.ports.out.BranchRepositoryPort;
-import reve_back.application.ports.out.CashMovementRepositoryPort;
-import reve_back.application.ports.out.CashSessionRepositoryPort;
-import reve_back.application.ports.out.SalesRepositoryPort;
+import reve_back.application.ports.out.*;
 import reve_back.domain.model.CashMovement;
 import reve_back.domain.model.CashSession;
-import reve_back.domain.model.User;
-import reve_back.infrastructure.persistence.entity.UserEntity;
+import reve_back.infrastructure.mapper.CashSessionMapper;
+import reve_back.infrastructure.persistence.entity.CashSessionEntity;
+import reve_back.infrastructure.persistence.entity.CashSessionsSummaryEntity;
+import reve_back.infrastructure.persistence.entity.PaymentMethodEntity;
 import reve_back.infrastructure.persistence.enums.global.SessionStatus;
-import reve_back.infrastructure.persistence.jpa.PaymentMethodSummary;
-import reve_back.infrastructure.persistence.jpa.SpringDataSaleRepository;
+import reve_back.infrastructure.persistence.jpa.*;
 import reve_back.infrastructure.web.dto.CashStatusResponse;
 
 import java.math.BigDecimal;
@@ -36,6 +34,10 @@ public class CashSessionService implements ManageCashSessionUseCase {
     private final BranchRepositoryPort branchPort;
     private final SalesRepositoryPort salesRepository;
     private final SpringDataSaleRepository springDataSaleRepository;
+    private final SprigDataPaymentMethodRepository sprigDataPaymentMethodRepository;
+    private final SpringDataCashSessionSummaryRepository springDataCashSessionSummaryRepository;
+    private final CashSessionMapper cashSessionMapper;
+    private final SpringDataCashMovementRepository springDataCashMovementRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -50,16 +52,15 @@ public class CashSessionService implements ManageCashSessionUseCase {
         var sessionOpt = cashSessionPort.findOpenSessionByWarehouse(warehouseId);
 
         if (sessionOpt.isEmpty()) {
-            // Caso CERRADO: Retornamos todo en cero y listas vacías
             return new CashStatusResponse(
                     "CLOSED",
                     null,
-                    null, // openedAt
+                    BigDecimal.ZERO, // initialCash (Corregido orden según tu Record anterior)
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
-                    Collections.emptyMap(), // Mapa de desglose vacío
+                    Collections.emptyMap(),
                     Collections.emptyList()
             );
         }
@@ -67,47 +68,38 @@ public class CashSessionService implements ManageCashSessionUseCase {
         CashSession session = sessionOpt.get();
         Long sessionId = session.getId();
 
-        // 3. CÁLCULOS AVANZADOS (Desglose por método de pago)
+        List<PaymentMethodSummary> breakdownList = springDataCashMovementRepository.getVentaBreakdownBySession(sessionId);
 
-        // A. Obtenemos el desglose agrupado desde Ventas
-        // Esto separa cuanto fue Efectivo, Yape, Visa, etc.
-        List<PaymentMethodSummary> breakdownList = springDataSaleRepository.getPaymentBreakdownBySession(sessionId);
-
-        // B. Convertimos a Mapa para enviarlo al Frontend y calcular fácil
+        // B. Convertimos a Mapa para enviarlo al Frontend
         Map<String, BigDecimal> breakdownMap = breakdownList.stream()
                 .collect(Collectors.toMap(
-                        summary -> summary.getMethod().toUpperCase(), // Clave: "EFECTIVO", "YAPE"
-                        PaymentMethodSummary::getTotal                // Valor: Monto
+                        summary -> summary.getMethod() != null ? summary.getMethod().toUpperCase() : "DESCONOCIDO",
+                        PaymentMethodSummary::getTotal
                 ));
 
-        // C. Extraemos SOLO lo que es EFECTIVO para el arqueo físico
-        // Importante: Asegúrate que en tu BD el método se llame "EFECTIVO"
-        BigDecimal totalSalesCash = breakdownMap.getOrDefault("EFECTIVO", BigDecimal.ZERO);
+        BigDecimal totalOperationsCash = breakdownMap.getOrDefault("EFECTIVO", BigDecimal.ZERO);
 
         // D. Movimientos Manuales (Ingresos/Egresos de caja chica)
-        BigDecimal totalIncome = cashMovementPort.sumTotalBySessionAndType(sessionId, "INGRESO");
-        if (totalIncome == null) totalIncome = BigDecimal.ZERO;
+        BigDecimal totalManualIncome = springDataCashMovementRepository.sumTotalIncomeBySession(sessionId);
+        BigDecimal totalManualExpense = springDataCashMovementRepository.sumTotalExpenseBySession(sessionId);
 
-        BigDecimal totalExpense = cashMovementPort.sumTotalBySessionAndType(sessionId, "EGRESO");
-        if (totalExpense == null) totalExpense = BigDecimal.ZERO;
-
-        // 4. CÁLCULO DEL SALDO FÍSICO (Billetes en el cajón)
-        // Fórmula: Inicial + Ventas(Solo Efectivo) + Ingresos Manuales - Egresos Manuales
+        // E. Calculamos el Saldo Físico Real
+        // Fórmula: Inicial + (Ventas/Contratos en Efectivo) + (Ingresos Manuales) - (Gastos Manuales)
         BigDecimal currentBalance = session.getInitialCash()
-                .add(totalSalesCash)
-                .add(totalIncome)
-                .subtract(totalExpense);
+                .add(totalOperationsCash)
+                .add(totalManualIncome)
+                .subtract(totalManualExpense);
 
-        // 5. Historial de movimientos manuales recientes
+        // 5. Historial de movimientos recientes
         List<CashMovement> recentMovements = cashMovementPort.findRecentBySession(sessionId);
 
         return new CashStatusResponse(
                 "OPEN",
                 sessionId,
                 session.getInitialCash(),
-                totalSalesCash,
-                totalIncome,
-                totalExpense,
+                totalOperationsCash,
+                totalManualIncome,
+                totalManualExpense,
                 currentBalance,
                 breakdownMap,
                 recentMovements
@@ -138,8 +130,10 @@ public class CashSessionService implements ManageCashSessionUseCase {
     }
 
     @Override
+    @Transactional
     public void closeSession(Long branchId, Long userId, BigDecimal countedCash, String notes) {
 
+        // 1. Obtenemos estado actual (con el desglose calculado)
         CashStatusResponse status = getSessionStatus(branchId);
 
         if (!"OPEN".equals(status.status())) {
@@ -149,20 +143,48 @@ public class CashSessionService implements ManageCashSessionUseCase {
         var branch = branchPort.findById(branchId).orElseThrow();
         var session = cashSessionPort.findOpenSessionByWarehouse(branch.warehouseId()).get();
 
-        BigDecimal expected = status.currentSystemBalance();
-        BigDecimal difference = countedCash.subtract(expected);
+        // 2. Cálculos de Diferencia (Solo afecta al Efectivo)
+        BigDecimal expectedPhysical = status.currentSystemBalance();
+        BigDecimal difference = countedCash.subtract(expectedPhysical);
 
+        // 3. Actualizamos la sesión principal
         session.setClosedAt(LocalDateTime.now());
-
         session.setClosedByUserId(userId);
-
-        session.setFinalCashExpected(expected);
+        session.setFinalCashExpected(expectedPhysical);
         session.setFinalCashCounted(countedCash);
         session.setDifference(difference);
+        session.setTotalManualIncome(status.totalIncome());
+        session.setTotalManualExpense(status.totalExpense());
         session.setNotes(notes);
         session.setStatus(SessionStatus.CLOSED);
 
-        cashSessionPort.save(session);
+        CashSession savedDomainSession = cashSessionPort.save(session);
+
+        CashSessionEntity savedSession = cashSessionMapper.toEntity(savedDomainSession);
+
+        if (status.paymentBreakdown() != null && !status.paymentBreakdown().isEmpty()) {
+
+            List<PaymentMethodEntity> allMethods = sprigDataPaymentMethodRepository.findAll();
+
+            status.paymentBreakdown().forEach((methodName, amount) -> {
+
+                PaymentMethodEntity pmEntity = allMethods.stream()
+                        .filter(pm -> pm.getName().equalsIgnoreCase(methodName))
+                        .findFirst()
+                        .orElse(null);
+
+                if (pmEntity != null && amount.compareTo(BigDecimal.ZERO) > 0) {
+
+                    CashSessionsSummaryEntity summary = CashSessionsSummaryEntity.builder()
+                            .cashSession(savedSession)
+                            .paymentMethod(pmEntity)
+                            .amount(amount)
+                            .build();
+
+                    springDataCashSessionSummaryRepository.save(summary);
+                }
+            });
+        }
     }
 
     @Override
@@ -170,9 +192,13 @@ public class CashSessionService implements ManageCashSessionUseCase {
         var branch = branchPort.findById(branchId).orElseThrow();
         Long warehouseId = branch.warehouseId();
 
-        // Verificar que la caja esté abierta
         var session = cashSessionPort.findOpenSessionByWarehouse(warehouseId)
                 .orElseThrow(() -> new RuntimeException("Debe abrir la caja antes de registrar movimientos."));
+
+        String finalMethod = method;
+        if (finalMethod == null || finalMethod.trim().isEmpty()) {
+            finalMethod = "EFECTIVO";
+        }
 
         CashMovement movement = new CashMovement(
                 null,
@@ -181,7 +207,7 @@ public class CashSessionService implements ManageCashSessionUseCase {
                 amount,
                 type,
                 description,
-                method,
+                finalMethod,
                 userId,
                 null,
                 null, // saleId

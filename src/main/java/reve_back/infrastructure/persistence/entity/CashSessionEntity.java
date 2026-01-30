@@ -56,6 +56,12 @@ public class CashSessionEntity {
     @Column(name = "difference")
     private BigDecimal difference;
 
+    @Column(name = "total_manual_income")
+    private BigDecimal totalManualIncome;
+
+    @Column(name = "total_manual_expense")
+    private BigDecimal totalManualExpense;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 

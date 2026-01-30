@@ -31,6 +31,8 @@ public class CashSession {
     private BigDecimal finalCashExpected; // Lo que el sistema dice que hay
     private BigDecimal finalCashCounted;  // Lo que el usuario contó
     private BigDecimal difference;        // Sobrante o Faltante
+    private BigDecimal totalManualIncome;
+    private BigDecimal totalManualExpense;
 
     private String notes;
 

@@ -22,7 +22,6 @@ public class CashSessionMapper {
 
         return CashSession.builder()
                 .id(entity.getId())
-                // Asumiendo que guardas el ID del almacén directamente o via relación
                 .warehouseId(entity.getWarehouse().getId())
 
                 // Extraemos solo el ID del usuario (Relación -> Long)
@@ -36,6 +35,8 @@ public class CashSessionMapper {
                 .finalCashExpected(entity.getFinalCashExpected())
                 .finalCashCounted(entity.getFinalCashCounted())
                 .difference(entity.getDifference())
+                .totalManualIncome(entity.getTotalManualIncome())
+                .totalManualExpense(entity.getTotalManualExpense())
                 .notes(entity.getNotes())
 
                 // Convertimos el Enum o String de la BD al Enum del Dominio
@@ -61,6 +62,8 @@ public class CashSessionMapper {
         entity.setFinalCashExpected(domain.getFinalCashExpected());
         entity.setFinalCashCounted(domain.getFinalCashCounted());
         entity.setDifference(domain.getDifference());
+        entity.setTotalManualIncome(domain.getTotalManualIncome());
+        entity.setTotalManualExpense(domain.getTotalManualExpense());
         entity.setNotes(domain.getNotes());
         entity.setStatus(domain.getStatus());
 

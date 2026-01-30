@@ -19,21 +19,21 @@ public interface SpringDataCashMovementRepository extends JpaRepository<CashMove
 
     List<CashMovementEntity> findTop10ByCashSessionIdOrderByCreatedAtDesc(Long sessionId);
 
-    @Query("SELECT SUM(m.amount) FROM CashMovementEntity m " +
+    // Usamos COALESCE(m.method, 'EFECTIVO') para que si es NULL, lo cuente como efectivo
+    @Query("SELECT COALESCE(m.method, 'EFECTIVO') as method, SUM(m.amount) as total " +
+            "FROM CashMovementEntity m " +
             "WHERE m.cashSession.id = :sessionId " +
-            "AND m.type = 'INGRESO' " +
-            "AND m.method = 'EFECTIVO'") // <--- FILTRO CLAVE
-    BigDecimal sumCashIncomeBySession(@Param("sessionId") Long sessionId);
+            "AND m.type = 'VENTA' " +
+            "GROUP BY COALESCE(m.method, 'EFECTIVO')") // <--- Importante agrupar igual
+    List<PaymentMethodSummary> getVentaBreakdownBySession(@Param("sessionId") Long sessionId);
 
-    // 2. Sumar Egresos (SOLO EFECTIVO) para el saldo físico
-    @Query("SELECT SUM(m.amount) FROM CashMovementEntity m " +
-            "WHERE m.cashSession.id = :sessionId " +
-            "AND m.type = 'EGRESO' " +
-            "AND m.method = 'EFECTIVO'") // <--- FILTRO CLAVE
-    BigDecimal sumCashExpenseBySession(@Param("sessionId") Long sessionId);
+    // 2. Sumar Ingresos Manuales (Caja chica, sencillos) - Tipo INGRESO
+    @Query("SELECT COALESCE(SUM(m.amount), 0) FROM CashMovementEntity m " +
+            "WHERE m.cashSession.id = :sessionId AND m.type = 'INGRESO'")
+    BigDecimal sumTotalIncomeBySession(@Param("sessionId") Long sessionId);
 
-    // 3. (Opcional) Si quieres sumar Yape/Tarjeta para reportes
-    @Query("SELECT SUM(m.amount) FROM CashMovementEntity m " +
-            "WHERE m.cashSession.id = :sessionId AND m.method = :method")
-    BigDecimal sumBySessionAndMethod(@Param("sessionId") Long sessionId, @Param("method") String method);
+    // 3. Sumar Egresos Manuales (Gastos) - Tipo EGRESO
+    @Query("SELECT COALESCE(SUM(m.amount), 0) FROM CashMovementEntity m " +
+            "WHERE m.cashSession.id = :sessionId AND m.type = 'EGRESO'")
+    BigDecimal sumTotalExpenseBySession(@Param("sessionId") Long sessionId);
 }

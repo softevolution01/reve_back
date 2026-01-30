@@ -14,6 +14,7 @@ public record ContractCreationRequest(
         @NotNull LocalDate startDate,
         LocalDate endDate,
         @NotNull BigDecimal discount,
-        @NotNull BigDecimal advancePayment // Adelanto
+        @NotNull BigDecimal advancePayment, // Adelanto
+        @NotNull Long paymentMethodId
 ) {
 }
