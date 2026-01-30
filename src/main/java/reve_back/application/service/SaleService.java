@@ -130,13 +130,8 @@ public class SaleService implements CreateSaleUseCase {
             ));
         }
 
-        // =================================================================================
-        // NUEVO: LÓGICA DE PROMOCIÓN 3x2 AUTOMÁTICA
-        // =================================================================================
         List<SaleItem> eligibleForPromo = new ArrayList<>();
         for (SaleItem item : tempItems) {
-            // Expandimos los items según su cantidad para ordenarlos individualmente
-            // Ej: Si vendes 2 perfumes iguales, cuentan como 2 items para la promo
             if (item.isPromoLocked()) {
                 for(int i=0; i < item.quantity(); i++) {
                     eligibleForPromo.add(item);
@@ -144,58 +139,55 @@ public class SaleService implements CreateSaleUseCase {
             }
         }
 
-        // Ordenamos de MAYOR a MENOR precio
+// Ordenamos de MAYOR a MENOR precio
         eligibleForPromo.sort((a, b) -> b.unitPrice().compareTo(a.unitPrice()));
 
+// Calculamos el descuento real del 3x2
         BigDecimal totalPromoDiscount = BigDecimal.ZERO;
-
-        // Aplicamos lógica: Cada 3 productos, el 3ro es gratis
         if (eligibleForPromo.size() >= 3) {
             int groupsOfThree = eligibleForPromo.size() / 3;
             for (int i = 0; i < groupsOfThree; i++) {
-                // El índice del gratis es: 2, 5, 8... (El 3ro de cada grupo ordenado)
                 int freeItemIndex = (i + 1) * 3 - 1;
-                SaleItem freeItem = eligibleForPromo.get(freeItemIndex);
-                totalPromoDiscount = totalPromoDiscount.add(freeItem.unitPrice());
+                totalPromoDiscount = totalPromoDiscount.add(eligibleForPromo.get(freeItemIndex).unitPrice());
             }
         }
-        // =================================================================================
 
-        // 4. Aplicación de Descuentos de Sistema (Incluye el 3x2 calculado)
-        BigDecimal remainingSystemDiscount = (request.systemDiscount() != null ? request.systemDiscount() : BigDecimal.ZERO)
-                .add(totalPromoDiscount); // Sumamos el descuento del 3x2 al descuento global
+// IMPORTANTE: El systemDiscount del request NO debe sumarse si ya es parte del 3x2
+// Si el frontend ya envió el descuento, no lo vuelvas a sumar.
+// Usaremos SOLO el totalPromoDiscount calculado aquí para evitar duplicidad.
+        BigDecimal discountToDistribute = totalPromoDiscount;
 
-        if (remainingSystemDiscount.compareTo(BigDecimal.ZERO) > 0) {
-            // Priorizamos aplicar el descuento a los items desbloqueados más baratos
-            // (Esto es visual para que la boleta muestre el descuento donde corresponde)
-            List<Integer> promoIndices = new ArrayList<>();
+        if (discountToDistribute.compareTo(BigDecimal.ZERO) > 0) {
+            // Ordenamos los items originales para aplicar el descuento empezando por el más barato
+            List<Integer> targetIndices = new ArrayList<>();
             for (int i = 0; i < tempItems.size(); i++) {
-                if (!tempItems.get(i).isPromoLocked()) { // Solo si no está bloqueado
-                    promoIndices.add(i);
-                }
+                if (tempItems.get(i).isPromoLocked()) targetIndices.add(i);
             }
-            // Ordenamos items por precio ascendente para consumir el descuento
-            promoIndices.sort(Comparator.comparing(i -> tempItems.get(i).unitPrice()));
+            targetIndices.sort(Comparator.comparing(i -> tempItems.get(i).unitPrice()));
 
-            for (Integer index : promoIndices) {
-                if (remainingSystemDiscount.compareTo(BigDecimal.ZERO) <= 0) break;
+            for (Integer index : targetIndices) {
+                if (discountToDistribute.compareTo(BigDecimal.ZERO) <= 0) break;
 
                 SaleItem currentItem = tempItems.get(index);
-                BigDecimal lineGross = currentItem.unitPrice().multiply(new BigDecimal(currentItem.quantity()));
+                BigDecimal lineMaxDiscount = currentItem.unitPrice().multiply(new BigDecimal(currentItem.quantity()));
 
-                // Aplicamos tanto descuento como sea posible a esta línea
-                BigDecimal discountToApply = lineGross.min(remainingSystemDiscount);
+                // Solo aplicamos lo que falta por distribuir
+                BigDecimal actualDiscountForThisLine = lineMaxDiscount.min(discountToDistribute);
 
                 tempItems.set(index, new SaleItem(
-                        currentItem.id(), currentItem.productId(), currentItem.decantPriceId(), currentItem.productName(), currentItem.productBrand(),
+                        currentItem.id(), currentItem.productId(), currentItem.decantPriceId(),
+                        currentItem.productName(), currentItem.productBrand(),
                         currentItem.quantity(), currentItem.unitPrice(),
-                        discountToApply, // Asignamos el descuento
+                        actualDiscountForThisLine, // Aplicación directa
                         currentItem.manualDiscount(),
                         BigDecimal.ZERO,
-                        currentItem.volumeMlPerUnit(), currentItem.isPromoLocked(), currentItem.isPromoForced(), currentItem.promoStrategyApplied()
+                        currentItem.volumeMlPerUnit(),
+                        currentItem.isPromoLocked(),
+                        true,
+                        "3x2_AUTOMATIC"
                 ));
 
-                remainingSystemDiscount = remainingSystemDiscount.subtract(discountToApply);
+                discountToDistribute = discountToDistribute.subtract(actualDiscountForThisLine);
             }
         }
 
