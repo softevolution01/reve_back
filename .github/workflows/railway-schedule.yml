@@ -1,0 +1,34 @@
+name: Gestionar Horario Railway
+
+on:
+  schedule:
+    # Ajusta estos cron a tu hora local (están en UTC)
+    - cron: '0 5 * * *'  # Ejemplo: Apagar
+    - cron: '0 13 * * *' # Ejemplo: Encender
+  workflow_dispatch: 
+
+jobs:
+  manage-service:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Instalar Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Detener Servicio (Noche)
+        if: github.event.schedule == '0 5 * * *'
+        # Usamos service:down para apagarlo por completo
+        run: railway service:down -s reveback-production.up.railway.app --y
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Levantar Servicio (Mañana)
+        if: github.event.schedule == '0 13 * * *'
+        # 'railway up' sube el código de la rama elegida arriba
+        run: railway up --detach -s reveback-production.up.railway.app
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
