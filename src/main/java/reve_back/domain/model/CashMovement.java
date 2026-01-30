@@ -5,14 +5,17 @@ import java.time.LocalDateTime;
 
 public record CashMovement(
         Long id,
+        Long sessionId,
         Long branchId,
 
         BigDecimal amount,
-        String type,            // 'INGRESO', 'EGRESO', 'APERTURA', 'CIERRE'
+        String type,            // 'INGRESO', 'EGRESO'
         String description,
+        String method,
 
         Long registeredBy,      // ID del usuario
-        Long saleId,            // ID de la venta (si aplica)
+        String registeredByUsername,
+        Long saleId,
 
         LocalDateTime createdAt
 ) {}

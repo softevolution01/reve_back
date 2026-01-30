@@ -61,4 +61,8 @@ public class SaleEntity {
 
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL)
     private List<SalePaymentEntity> payments;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cash_session_id")
+    private CashSessionEntity cashSession;
 }

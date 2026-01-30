@@ -48,10 +48,11 @@ public class ContractController {
     @PostMapping("/{id}/finalize")
     public ResponseEntity<?> finalizeContract(
             @PathVariable Long id,
-            @RequestParam Long userId // Quién lo finaliza
+            @RequestParam Long userId,
+            @RequestParam Long paymentMethodId
     ) {
         try {
-            contractService.finalizeContract(id, userId);
+            contractService.finalizeContract(id, userId, paymentMethodId);
             return ResponseEntity.ok(Map.of("message", "Contrato finalizado y saldo ingresado a caja"));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
