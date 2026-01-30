@@ -46,4 +46,10 @@ public class SalesPersistenceAdapter implements SalesRepositoryPort {
         return springDataSaleRepository.findById(id)
                 .map(saleDtoMapper::toDomain);
     }
+
+    @Override
+    public BigDecimal sumCashSalesBySessionId(Long sessionId) {
+        // Llamada directa a la query JPQL que creamos arriba
+        return springDataSaleRepository.sumTotalByCashSessionId(sessionId);
+    }
 }

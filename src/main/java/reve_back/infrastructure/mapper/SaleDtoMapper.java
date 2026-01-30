@@ -30,6 +30,10 @@ public class SaleDtoMapper {
                 entity.getBranch() != null ? entity.getBranch().getId() : null,
                 entity.getUser() != null ? entity.getUser().getId() : null,
                 entity.getClient() != null ? entity.getClient().getId() : null,
+
+                entity.getCashSession() != null ? entity.getCashSession().getId() : null,
+
+
                 entity.getClient() != null ? entity.getClient().getFullname() : "Cliente Casual",
 
                 // Finanzas
@@ -39,8 +43,7 @@ public class SaleDtoMapper {
                 entity.getPaymentSurcharge(),
                 entity.getTotalFinalCharged(),
 
-
-                entity.getPaymentMethod(), // String resumen
+                entity.getPaymentMethod(),
 
                 // Listas
                 toItemDomainList(entity.getItems()),
@@ -100,7 +103,7 @@ public class SaleDtoMapper {
     public SaleEntity toEntity(Sale domain) {
         if (domain == null) return null;
 
-        // A. Cabecera
+        // A. Cabecera (Datos simples)
         SaleEntity entity = SaleEntity.builder()
                 .id(domain.id())
                 .saleDate(domain.saleDate())
@@ -109,10 +112,10 @@ public class SaleDtoMapper {
                 .igvRate(domain.igvRate())
                 .paymentSurcharge(domain.paymentSurcharge())
                 .totalFinalCharged(domain.totalFinalCharged())
-                .paymentMethod(domain.paymentMethod()) // String resumen
+                .paymentMethod(domain.paymentMethod())
                 .build();
 
-        // B. Relaciones (Foreign Keys con Proxy)
+        // B. Relaciones (Foreign Keys con Proxy - Optimización)
         if (domain.branchId() != null) {
             entity.setBranch(entityManager.getReference(BranchEntity.class, domain.branchId()));
         }
@@ -123,7 +126,9 @@ public class SaleDtoMapper {
             entity.setClient(entityManager.getReference(ClientEntity.class, domain.clientId()));
         }
 
-        // C. Items (Productos)
+        if (domain.cashSessionId() != null) {
+            entity.setCashSession(entityManager.getReference(CashSessionEntity.class, domain.cashSessionId()));
+        }
         if (domain.items() != null) {
             List<SaleItemEntity> itemEntities = domain.items().stream()
                     .map(itemDomain -> toItemEntity(itemDomain, entity))

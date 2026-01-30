@@ -5,8 +5,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reve_back.application.ports.in.ManageCashSessionUseCase;
 import reve_back.application.ports.out.*;
+import reve_back.domain.model.BottlesStatus;
 import reve_back.domain.model.Branch;
+import reve_back.domain.model.CashMovement;
+import reve_back.domain.model.InventoryMovement;
 import reve_back.infrastructure.persistence.entity.*;
 import reve_back.infrastructure.persistence.jpa.*;
 import reve_back.infrastructure.web.dto.*;
@@ -23,28 +27,37 @@ public class ContractService {
     private final SpringDataContractRepository contractRepository;
     private final SpringDataBottleRepository bottleRepository;
     private final SpringDataProductRepository productRepository;
-    private final CashMovementRepositoryPort cashMovementRepositoryPort;
+
+    // Puertos (Arquitectura Hexagonal)
+    private final ManageCashSessionUseCase manageCashSessionUseCase; // <--- CLAVE PARA LA CAJA
     private final InventoryMovementRepositoryPort inventoryMovementRepositoryPort;
     private final BranchRepositoryPort branchRepositoryPort;
 
+    /**
+     * Busca productos disponibles para contrato en el almacén de la sucursal.
+     * Agrupa botellas del mismo producto para mostrar stock total.
+     */
     @Transactional(readOnly = true)
     public List<ProductContractLookupResponse> findProductsForContract(Long branchId, String query) {
-        // Obtenemos el objeto de Dominio (Record Branch)
+        // 1. Obtener datos de la Sede (Dominio)
         Branch branch = branchRepositoryPort.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Sede no encontrada"));
 
+        // 2. Buscar botellas por nombre de producto (JPA)
         List<BottleEntity> bottles = bottleRepository.findActiveByProductNameLike(query, PageRequest.of(0, 50));
 
+        // 3. Filtrar por Almacén y Agrupar
         return bottles.stream()
-                // CORRECCIÓN 1: Usamos el método del Record 'warehouseId()' directamente
+                // Validamos que la botella esté en el almacén de la sucursal
                 .filter(b -> b.getWarehouse().getId().equals(branch.warehouseId()))
                 .filter(b -> b.getQuantity() > 0)
                 .map(b -> new ProductContractLookupResponse(
                         b.getProduct().getId(),
                         b.getProduct().getBrand() + " " + b.getProduct().getLine() + " " + b.getProduct().getConcentration(),
-                        new BigDecimal(b.getProduct().getPrice()),
+                        BigDecimal.valueOf(b.getProduct().getPrice()),
                         b.getQuantity()
                 ))
+                // Agrupamos por ID de producto sumando el stock
                 .collect(Collectors.toMap(
                         ProductContractLookupResponse::productId,
                         p -> p,
@@ -54,22 +67,25 @@ public class ContractService {
                 .values().stream().toList();
     }
 
+    /**
+     * Crea un contrato, descuenta stock y registra el pago inicial en caja.
+     */
     @Transactional(rollbackFor = Exception.class)
     public void createContract(ContractCreationRequest request) {
-        // 1. Referencias y Validaciones Iniciales
-        BranchEntity branchRef = BranchEntity.builder().id(request.branchId()).build();
+        // 1. Validaciones Iniciales
+        Branch branchDomain = branchRepositoryPort.findById(request.branchId())
+                .orElseThrow(() -> new RuntimeException("Sede no encontrada"));
 
-        var branchDomain = branchRepositoryPort.findById(request.branchId()).orElseThrow();
         Long warehouseId = branchDomain.warehouseId();
 
         ProductEntity product = productRepository.findById(request.productId())
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-        // 2. Obtener Stock Disponible (Solo Botellas Selladas)
+        // 2. Obtener Stock Disponible (Solo Botellas Selladas en el Almacén correcto)
         List<BottleEntity> stock = bottleRepository.findByProductId(request.productId());
         List<BottleEntity> availableBottles = stock.stream()
                 .filter(b -> b.getWarehouse().getId().equals(warehouseId))
-                .filter(b -> "SELLADA".equalsIgnoreCase(b.getStatus().getValue()))
+                .filter(b -> "SELLADA".equalsIgnoreCase(b.getStatus().getValue())) // Asumiendo que tu Enum tiene .getValue() o toString()
                 .filter(b -> b.getQuantity() > 0)
                 .toList();
 
@@ -80,9 +96,8 @@ public class ContractService {
             throw new RuntimeException("Stock insuficiente para contrato. Disponible: " + quantityFound);
         }
 
-        // 3. Descontar Stock (CANTIDAD + VOLUMEN + VOLUMEN RESTANTE)
-        // Obtenemos el volumen unitario del producto (ej: 100ml)
-        int volumePerUnit = product.getVolumeProductsMl();
+        // 3. Descontar Stock (CANTIDAD + VOLUMEN)
+        int volumePerUnit = product.getVolumeProductsMl(); // Ej: 100ml
 
         for (BottleEntity bottle : availableBottles) {
             if (quantityNeeded <= 0) break;
@@ -90,48 +105,50 @@ public class ContractService {
             int currentQty = bottle.getQuantity();
             int take = Math.min(currentQty, quantityNeeded);
 
-            // Calculamos la nueva cantidad
+            // Cálculos de actualización
             int newQty = currentQty - take;
-
-            // NUEVO: Recalculamos volúmenes basados en la nueva cantidad
-            // Si quedan 4 botellas de 100ml, el volumen debe ser 400ml
             int newVolumeMl = newQty * volumePerUnit;
-            int newRemainingVolumeMl = newVolumeMl; // En botellas selladas, remanente = total
+            int newRemainingVolumeMl = newVolumeMl; // En selladas, el remanente es igual al total
 
-            // Actualizamos la Entidad
+            // Actualizar Entidad Botella
             bottle.setQuantity(newQty);
-            bottle.setVolumeMl(newVolumeMl);                  // <--- Actualización Clave
-            bottle.setRemainingVolumeMl(newRemainingVolumeMl);// <--- Actualización Clave
+            bottle.setVolumeMl(newVolumeMl);
+            bottle.setRemainingVolumeMl(newRemainingVolumeMl);
 
-            // Verificar si se agotó este lote/botella
+            // Si queda en 0, cambiar estado
             if (newQty == 0) {
-                bottle.setStatus(reve_back.domain.model.BottlesStatus.AGOTADA);
-                // Por seguridad, si es 0 cantidad, forzamos volumen a 0 (aunque el cálculo arriba ya lo hace)
-                bottle.setVolumeMl(0);
-                bottle.setRemainingVolumeMl(0);
+                // Asegúrate de usar tu Enum correcto aquí
+                bottle.setStatus(BottlesStatus.AGOTADA);
             }
 
             bottleRepository.save(bottle);
 
-            // Registrar el movimiento en el historial
-            reve_back.domain.model.InventoryMovement invMov = new reve_back.domain.model.InventoryMovement(
-                    null, bottle.getId(), take, "EGRESO", "UNIT", "CONTRATO", request.userId(), LocalDateTime.now()
+            // Registrar Movimiento de Inventario (Dominio)
+            InventoryMovement invMov = new InventoryMovement(
+                    null,
+                    bottle.getId(),
+                    take,
+                    "EGRESO",
+                    "UNIT",
+                    "CONTRATO",
+                    request.userId(),
+                    LocalDateTime.now()
             );
             inventoryMovementRepositoryPort.save(invMov);
 
             quantityNeeded -= take;
         }
 
-        // 4. Cálculos Financieros del Contrato
-        BigDecimal priceBase = new BigDecimal(product.getPrice()).multiply(new BigDecimal(request.quantity()));
+        // 4. Cálculos Financieros
+        BigDecimal priceBase = BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(request.quantity()));
         BigDecimal finalPrice = priceBase.subtract(request.discount());
         BigDecimal pendingBalance = finalPrice.subtract(request.advancePayment());
 
-        // 5. Guardar Contrato
+        // 5. Crear y Guardar Contrato (JPA)
         ContractEntity contract = ContractEntity.builder()
                 .client(ClientEntity.builder().id(request.clientId()).build())
                 .user(UserEntity.builder().id(request.userId()).build())
-                .branch(branchRef)
+                .branch(BranchEntity.builder().id(request.branchId()).build())
                 .product(product)
                 .quantity(request.quantity())
                 .startDate(request.startDate())
@@ -142,20 +159,27 @@ public class ContractService {
                 .advancePayment(request.advancePayment())
                 .pendingBalance(pendingBalance)
                 .status("PENDIENTE")
+                .createdAt(LocalDateTime.now())
                 .build();
 
         ContractEntity savedContract = contractRepository.save(contract);
 
-        // 6. Registrar Movimiento de Caja (Si hubo adelanto)
+        // 6. REGISTRAR CAJA (ADELANTO) - USANDO EL SERVICIO CENTRALIZADO
         if (request.advancePayment().compareTo(BigDecimal.ZERO) > 0) {
-            reve_back.domain.model.CashMovement cashMov = new reve_back.domain.model.CashMovement(
-                    null, request.branchId(), request.advancePayment(), "INGRESO",
-                    "ADELANTO CONTRATO #" + savedContract.getId(), request.userId(), null, LocalDateTime.now()
+            manageCashSessionUseCase.registerMovement(
+                    request.branchId(),
+                    request.userId(),
+                    "INGRESO",
+                    request.advancePayment(),
+                    "ADELANTO CONTRATO #" + savedContract.getId(),
+                    " "
             );
-            cashMovementRepositoryPort.save(cashMov);
         }
     }
 
+    /**
+     * Lista todos los contratos paginados.
+     */
     @Transactional(readOnly = true)
     public Page<ContractListResponse> getAllContracts(int page, int size) {
         return contractRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
@@ -174,6 +198,9 @@ public class ContractService {
                 ));
     }
 
+    /**
+     * Finaliza un contrato y registra el cobro del saldo restante en caja.
+     */
     @Transactional
     public void finalizeContract(Long contractId, Long userId) {
         ContractEntity contract = contractRepository.findById(contractId)
@@ -183,12 +210,16 @@ public class ContractService {
             throw new RuntimeException("El contrato no está pendiente.");
         }
 
+        // 7. REGISTRAR CAJA (SALDO PENDIENTE) - USANDO EL SERVICIO CENTRALIZADO
         if (contract.getPendingBalance().compareTo(BigDecimal.ZERO) > 0) {
-            reve_back.domain.model.CashMovement cashMov = new reve_back.domain.model.CashMovement(
-                    null, contract.getBranch().getId(), contract.getPendingBalance(), "INGRESO",
-                    "FINALIZACION CONTRATO #" + contract.getId(), userId, null, LocalDateTime.now()
+            manageCashSessionUseCase.registerMovement(
+                    contract.getBranch().getId(),
+                    userId,
+                    "INGRESO",
+                    contract.getPendingBalance(),
+                    "FINALIZACION CONTRATO #" + contract.getId(),
+                    " "
             );
-            cashMovementRepositoryPort.save(cashMov);
         }
 
         contract.setStatus("FINALIZADO");
