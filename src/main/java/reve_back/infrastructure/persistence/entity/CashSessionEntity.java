@@ -75,4 +75,7 @@ public class CashSessionEntity {
 
     @OneToMany(mappedBy = "cashSession", fetch = FetchType.LAZY)
     private List<SaleEntity> sales;
+
+    @OneToMany(mappedBy = "cashSession", fetch = FetchType.LAZY)
+    private List<CashSessionsSummaryEntity> summaries;
 }

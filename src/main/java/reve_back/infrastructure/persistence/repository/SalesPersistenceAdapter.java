@@ -8,9 +8,12 @@ import reve_back.infrastructure.mapper.SaleDtoMapper;
 import reve_back.infrastructure.persistence.entity.SaleEntity;
 import reve_back.infrastructure.persistence.jpa.SalesJpaRepository;
 import reve_back.infrastructure.persistence.jpa.SpringDataSaleRepository;
+import reve_back.infrastructure.persistence.jpa.WorkerRankingProjection;
+import reve_back.infrastructure.web.dto.WorkerRankingResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @RequiredArgsConstructor
@@ -51,5 +54,18 @@ public class SalesPersistenceAdapter implements SalesRepositoryPort {
     public BigDecimal sumCashSalesBySessionId(Long sessionId) {
         // Llamada directa a la query JPQL que creamos arriba
         return springDataSaleRepository.sumTotalByCashSessionId(sessionId);
+    }
+
+    @Override
+    public List<WorkerRankingResponse> getWorkerRanking(LocalDateTime start, LocalDateTime end) {
+        List<WorkerRankingProjection> projections = salesJpaRepository.getWorkerRankingByDateRange(start, end);
+
+        return projections.stream()
+                .map(p -> new WorkerRankingResponse(
+                        p.getWorkerName(),
+                        p.getTicketsCount(),
+                        p.getTotalSold()
+                ))
+                .toList();
     }
 }

@@ -13,4 +13,6 @@ public interface CashMovementRepositoryPort {
 
     // Ojo: Recibe ID (Long), no el objeto Session completo
     List<CashMovement> findRecentBySession(Long sessionId);
+
+    List<CashMovement> findAllBySessionId(Long sessionId);
 }

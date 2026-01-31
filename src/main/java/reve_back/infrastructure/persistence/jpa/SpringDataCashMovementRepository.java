@@ -36,4 +36,6 @@ public interface SpringDataCashMovementRepository extends JpaRepository<CashMove
     @Query("SELECT COALESCE(SUM(m.amount), 0) FROM CashMovementEntity m " +
             "WHERE m.cashSession.id = :sessionId AND m.type = 'EGRESO'")
     BigDecimal sumTotalExpenseBySession(@Param("sessionId") Long sessionId);
+
+    List<CashMovementEntity> findByCashSessionIdOrderByCreatedAtDesc(Long sessionId);
 }

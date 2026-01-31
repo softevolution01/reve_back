@@ -54,4 +54,13 @@ public class JpaCashMovementRepositoryAdapter implements CashMovementRepositoryP
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<CashMovement> findAllBySessionId(Long sessionId) {
+        // Usamos el método que trae la lista completa
+        return jpaRepository.findByCashSessionIdOrderByCreatedAtDesc(sessionId)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
 }

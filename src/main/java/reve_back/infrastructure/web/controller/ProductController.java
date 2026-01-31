@@ -29,7 +29,7 @@ public class ProductController {
     private final GetLabelCatalogUseCase getLabelCatalogUseCase;
 
     @GetMapping
-    @PreAuthorize("hasAuthority('catalog:read:all')")
+    @PreAuthorize("hasAuthority('inventory:edit:quantity')")
     public ResponseEntity<ProductPageResponse> getProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -40,7 +40,7 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('catalog:read:detail')")
+    @PreAuthorize("hasAuthority('inventory:edit:quantity')")
     public ResponseEntity<?> getProductDetails(@PathVariable Long id) {
         try{
             ProductDetailsResponse response = getProductDetailsUseCase.getProductDetails(id);
@@ -56,7 +56,7 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('catalog:create')")
+    @PreAuthorize("hasAuthority('inventory:edit:quantity')")
     public ResponseEntity<?> createProduct(@RequestBody ProductCreationRequest request) {
         try{
             ProductCreationResponse response = createProductUseCase.createProduct(request);
@@ -76,7 +76,7 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('catalog:edit')")
+    @PreAuthorize("hasAuthority('inventory:edit:quantity')")
     public ResponseEntity<?> updateProduct(@PathVariable Long id, @RequestBody ProductUpdateRequest request) {
         try{
             ProductDetailsResponse response = updateProductUseCase.updateProduct(id, request);
@@ -96,7 +96,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('catalog:delete')")
+    @PreAuthorize("hasAuthority('inventory:edit:quantity')")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try{
             deleteProductUseCase.deleteProduct(id);
@@ -118,7 +118,7 @@ public class ProductController {
     }
 
     @GetMapping("/search")
-    @PreAuthorize("hasAuthority('sales:create:client')")
+    @PreAuthorize("hasAuthority('inventory:edit:quantity')")
     public ResponseEntity<List<ProductSearchResponse>> searchProducts(
             @RequestParam("query") String query
     ) {
