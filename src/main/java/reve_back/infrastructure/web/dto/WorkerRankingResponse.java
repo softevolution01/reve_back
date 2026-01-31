@@ -2,9 +2,8 @@ package reve_back.infrastructure.web.dto;
 
 import java.math.BigDecimal;
 
-public record WorkerPerformanceResponse(
+public record WorkerRankingResponse(
         String workerName,
-        String period,
         Long ticketsCount,
         BigDecimal totalSold
 ) {}
