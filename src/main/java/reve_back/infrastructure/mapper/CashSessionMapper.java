@@ -67,8 +67,6 @@ public class CashSessionMapper {
         entity.setNotes(domain.getNotes());
         entity.setStatus(domain.getStatus());
 
-        // --- RELACIONES CON USUARIOS (Usando getReference para optimizar) ---
-        // Convertimos el ID (Long) a una Referencia de Entidad (UserEntity)
 
         if (domain.getOpenedByUserId() != null) {
             entity.setOpenedByUser(entityManager.getReference(UserEntity.class, domain.getOpenedByUserId()));

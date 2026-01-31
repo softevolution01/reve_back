@@ -90,8 +90,7 @@ public class CashSessionService implements ManageCashSessionUseCase {
                 .add(totalManualIncome)
                 .subtract(totalManualExpense);
 
-        // 5. Historial de movimientos recientes
-        List<CashMovement> recentMovements = cashMovementPort.findRecentBySession(sessionId);
+        List<CashMovement> allMovements = cashMovementPort.findAllBySessionId(sessionId);
 
         return new CashStatusResponse(
                 "OPEN",
@@ -102,7 +101,7 @@ public class CashSessionService implements ManageCashSessionUseCase {
                 totalManualExpense,
                 currentBalance,
                 breakdownMap,
-                recentMovements
+                allMovements
         );
     }
 
