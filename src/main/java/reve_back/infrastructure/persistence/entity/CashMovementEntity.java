@@ -49,6 +49,10 @@ public class CashMovementEntity {
     @JoinColumn(name = "sale_id")
     private SaleEntity sale;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "contract_id")
+    private ContractEntity contract;
+
     @Column(name = "created_at", updatable = false)
     @CreationTimestamp
     private LocalDateTime createdAt;

@@ -186,7 +186,8 @@ public class CashSessionService implements ManageCashSessionUseCase {
     }
 
     @Override
-    public void registerMovement(Long branchId, Long userId, String type, BigDecimal amount, String description, String method) {
+    public void registerMovement(Long branchId, Long userId, String type, BigDecimal amount, String description, String method, Long saleId, Long contractId) {
+
         var branch = branchPort.findById(branchId).orElseThrow();
         Long warehouseId = branch.warehouseId();
 
@@ -198,20 +199,23 @@ public class CashSessionService implements ManageCashSessionUseCase {
             finalMethod = "EFECTIVO";
         }
 
+        // 3. Fecha Perú
         LocalDateTime peruTime = ZonedDateTime.now(ZoneId.of("America/Lima")).toLocalDateTime();
 
         CashMovement movement = new CashMovement(
-                null,
-                session.getId(),
-                branchId,
-                amount,
-                type,
-                description,
-                finalMethod,
-                userId,
-                null,
-                null,
-                peruTime
+                null,                   // id
+                session.getId(),        // sessionId
+                branchId,               // branchId
+                amount,                 // amount
+                type,                   // type
+                description,            // description
+                finalMethod,            // method
+                userId,                 // registeredBy
+                null,                   // registeredByName (El mapper o DB lo resolverá al leer, no al guardar)
+                saleId,                 // saleId
+                contractId,             // contractId <--- AQUÍ SE GUARDA LA REFERENCIA
+                peruTime,               // createdAt
+                Collections.emptyList() // items (Al guardar va vacío, el mapper lo llena al leer)
         );
 
         cashMovementPort.save(movement);

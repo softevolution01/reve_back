@@ -8,5 +8,7 @@ public record RegisterMovementRequest(
         String type,        // "INGRESO" o "EGRESO"
         BigDecimal amount,
         String description,
-        String method
+        String method,
+        Long saleId,
+        Long contractId
 ) {}

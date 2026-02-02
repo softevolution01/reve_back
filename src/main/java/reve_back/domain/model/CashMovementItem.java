@@ -1,4 +1,10 @@
 package reve_back.domain.model;
 
-public record CashMovementItem() {
-}
+import java.math.BigDecimal;
+
+public record CashMovementItem(
+        String productName,
+        Integer quantity,
+        BigDecimal unitPrice,
+        BigDecimal subtotal
+) {}
