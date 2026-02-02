@@ -9,5 +9,5 @@ public interface ManageCashSessionUseCase {
     CashStatusResponse getSessionStatus(Long branchId);
     void openSession(Long branchId, Long userId, BigDecimal initialAmount);
     void closeSession(Long branchId, Long userId, BigDecimal countedCash, String notes);
-    void registerMovement(Long branchId, Long userId, String type, BigDecimal amount, String description, String method);
+    void registerMovement(Long branchId, Long userId, String type, BigDecimal amount, String description, String method, Long saleId, Long contractId);
 }

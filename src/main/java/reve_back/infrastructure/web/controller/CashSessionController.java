@@ -59,7 +59,9 @@ public class CashSessionController {
                 request.type(),
                 request.amount(),
                 request.description(),
-                request.method()
+                request.method(),
+                request.saleId(),
+                request.contractId()
         );
         return ResponseEntity.ok().build();
     }
