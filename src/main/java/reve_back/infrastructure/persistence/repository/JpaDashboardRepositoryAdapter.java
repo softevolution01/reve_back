@@ -3,6 +3,7 @@ package reve_back.infrastructure.persistence.repository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import reve_back.application.ports.out.DashboardRepositoryPort;
+import reve_back.domain.model.CashMovementItem;
 import reve_back.infrastructure.persistence.entity.CashSessionEntity;
 import reve_back.infrastructure.persistence.jpa.SalesJpaRepository;
 import reve_back.infrastructure.persistence.jpa.SpringDataBottleRepository;
@@ -70,7 +71,7 @@ public class JpaDashboardRepositoryAdapter implements DashboardRepositoryPort {
 
     private SessionReportResponse mapToSessionResponse(CashSessionEntity entity) {
 
-        // 1. Mapeo de Summaries (Ya lo tenías)
+        // 1. Mapeo de Summaries (Igual que antes)
         List<SessionSummaryResponse> summaries = Optional.ofNullable(entity.getSummaries())
                 .orElse(Collections.emptyList())
                 .stream()
@@ -80,19 +81,52 @@ public class JpaDashboardRepositoryAdapter implements DashboardRepositoryPort {
                 ))
                 .toList();
 
-        // 2. Mapeo de Movements (Corregido según tu Entidad)
+        // 2. Mapeo de Movements (CON LOS ITEMS)
         List<SessionMovementResponse> movements = Optional.ofNullable(entity.getMovements())
                 .orElse(Collections.emptyList())
                 .stream()
-                .sorted(Comparator.comparing(CashMovementEntity::getCreatedAt)) // CORRECCIÓN 1: Usar getCreatedAt
-                .map(m -> new SessionMovementResponse(
-                        m.getId(),
-                        m.getCreatedAt().format(DateTimeFormatter.ofPattern("HH:mm")),
-                        m.getType().name(),
-                        m.getDescription(),
-                        m.getAmount(),
-                        m.getMethod() != null ? m.getMethod() : "EFECTIVO"
-                ))
+                .sorted(Comparator.comparing(CashMovementEntity::getCreatedAt))
+                .map(m -> {
+                    // --- LÓGICA PARA OBTENER LOS ITEMS ---
+                    List<CashMovementItem> items = new ArrayList<>();
+
+                    // CASO A: Es una VENTA
+                    if (m.getSale() != null && m.getSale().getItems() != null) {
+                        items = m.getSale().getItems().stream()
+                                .map(item -> new CashMovementItem(
+                                        item.getProduct().getBrand(),
+                                        item.getQuantity(),
+                                        item.getUnitPrice(),
+                                        item.getFinalSubtotal() // Usa el subtotal final de la venta
+                                ))
+                                .toList();
+                    }
+                    // CASO B: Es un CONTRATO (Adelanto o Finalización)
+                    else if (m.getContract() != null && m.getContract().getItems() != null) {
+                        items = m.getContract().getItems().stream()
+                                .map(item -> new CashMovementItem(
+                                        item.getProduct().getBrand(),
+                                        item.getQuantity(),
+                                        item.getUnitPrice(),
+                                        item.getSubtotal() // Usa el subtotal del item del contrato
+                                ))
+                                .toList();
+                    }
+
+                    // --- CONSTRUCCIÓN DEL DTO ---
+                    return new SessionMovementResponse(
+                            m.getId(),
+                            m.getCreatedAt().format(DateTimeFormatter.ofPattern("HH:mm")),
+                            m.getType().name(),
+                            m.getDescription(),
+                            m.getAmount(),
+                            m.getMethod() != null ? m.getMethod() : "EFECTIVO",
+                            m.getRegisteredBy() != null ? m.getRegisteredBy().getUsername() : "Sistema", // Nombre usuario
+                            m.getSale() != null ? m.getSale().getId() : null,         // ID Venta
+                            m.getContract() != null ? m.getContract().getId() : null, // ID Contrato
+                            items
+                    );
+                })
                 .toList();
 
         // 3. Construcción del DTO Final
@@ -111,7 +145,7 @@ public class JpaDashboardRepositoryAdapter implements DashboardRepositoryPort {
                 entity.getDifference() != null ? entity.getDifference() : BigDecimal.ZERO,
                 entity.getNotes(),
                 summaries,
-                movements // <--- Pasamos la nueva lista aquí
+                movements
         );
     }
 }

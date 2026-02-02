@@ -150,9 +150,6 @@ public class SaleService implements CreateSaleUseCase {
             }
         }
 
-// IMPORTANTE: El systemDiscount del request NO debe sumarse si ya es parte del 3x2
-// Si el frontend ya envió el descuento, no lo vuelvas a sumar.
-// Usaremos SOLO el totalPromoDiscount calculado aquí para evitar duplicidad.
         BigDecimal discountToDistribute = totalPromoDiscount;
 
         if (discountToDistribute.compareTo(BigDecimal.ZERO) > 0) {
@@ -176,7 +173,7 @@ public class SaleService implements CreateSaleUseCase {
                         currentItem.id(), currentItem.productId(), currentItem.decantPriceId(),
                         currentItem.productName(), currentItem.productBrand(),
                         currentItem.quantity(), currentItem.unitPrice(),
-                        actualDiscountForThisLine, // Aplicación directa
+                        actualDiscountForThisLine,
                         currentItem.manualDiscount(),
                         BigDecimal.ZERO,
                         currentItem.volumeMlPerUnit(),
@@ -252,7 +249,9 @@ public class SaleService implements CreateSaleUseCase {
                         "VENTA",
                         amount,
                         "Venta " + method + " #" + savedSale.id(),
-                        method
+                        method,
+                        savedSale.id(),
+                        null
                 );
             }
         });

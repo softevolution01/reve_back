@@ -181,9 +181,12 @@ public class ContractService {
                     request.branchId(),
                     request.userId(),
                     "VENTA",
-                    cashAmount, // <--- OJO: AQUÍ VA EL MONTO CON RECARGO
+                    cashAmount,
                     "Adelanto Contrato #" + savedContract.getId() + " (" + pm.getName() + ")",
-                    pm.getName()
+                    pm.getName(),
+                    null,
+                    savedContract.getId()
+
             );
         }
     }
@@ -259,7 +262,9 @@ public class ContractService {
                     "VENTA",
                     cashAmount, // <--- MONTO CON RECARGO
                     "FINALIZACION CONTRATO #" + contract.getId() + " (Saldo)",
-                    pm.getName()
+                    pm.getName(),
+                    null,
+                    contractId
             );
         }
 
