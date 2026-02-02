@@ -20,7 +20,6 @@ public class AuthController {
     private final RefreshTokenUseCase refreshTokenUseCase;
 
     @PostMapping("/register")
-//    @PreAuthorize("hasAuthority('menu:sales:access')")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest dto){
         RegisterCommand command = new RegisterCommand(
                 dto.username(),

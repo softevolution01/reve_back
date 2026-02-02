@@ -17,6 +17,8 @@ import reve_back.infrastructure.web.dto.CashStatusResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -79,12 +81,9 @@ public class CashSessionService implements ManageCashSessionUseCase {
 
         BigDecimal totalOperationsCash = breakdownMap.getOrDefault("EFECTIVO", BigDecimal.ZERO);
 
-        // D. Movimientos Manuales (Ingresos/Egresos de caja chica)
         BigDecimal totalManualIncome = springDataCashMovementRepository.sumTotalIncomeBySession(sessionId);
         BigDecimal totalManualExpense = springDataCashMovementRepository.sumTotalExpenseBySession(sessionId);
 
-        // E. Calculamos el Saldo Físico Real
-        // Fórmula: Inicial + (Ventas/Contratos en Efectivo) + (Ingresos Manuales) - (Gastos Manuales)
         BigDecimal currentBalance = session.getInitialCash()
                 .add(totalOperationsCash)
                 .add(totalManualIncome)
@@ -199,6 +198,8 @@ public class CashSessionService implements ManageCashSessionUseCase {
             finalMethod = "EFECTIVO";
         }
 
+        LocalDateTime peruTime = ZonedDateTime.now(ZoneId.of("America/Lima")).toLocalDateTime();
+
         CashMovement movement = new CashMovement(
                 null,
                 session.getId(),
@@ -209,8 +210,8 @@ public class CashSessionService implements ManageCashSessionUseCase {
                 finalMethod,
                 userId,
                 null,
-                null, // saleId
-                LocalDateTime.now()
+                null,
+                peruTime
         );
 
         cashMovementPort.save(movement);
