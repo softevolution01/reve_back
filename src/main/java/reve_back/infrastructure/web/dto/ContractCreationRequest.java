@@ -1,16 +1,17 @@
 package reve_back.infrastructure.web.dto;
 
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public record ContractCreationRequest(
         @NotNull Long clientId,
         @NotNull Long userId,
         @NotNull Long branchId,
-        @NotNull Long productId,
-        @NotNull Integer quantity,
+        @NotEmpty List<ContractItemRequest> items,
         @NotNull LocalDate startDate,
         LocalDate endDate,
         @NotNull BigDecimal discount,

@@ -55,9 +55,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(AbstractHttpConfigurer::disable) // Desactivamos el cors de Security para usar el nuestro
+                .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Mantén esto por seguridad
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(WHITE_LIST_URLS).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -100,7 +100,6 @@ public class SecurityConfig {
         // Permitir credenciales
         config.setAllowCredentials(true);
 
-        // Orígenes explícitos (NO uses "*" si allowCredentials es true)
         config.setAllowedOrigins(Arrays.asList(
                 "https://reve-front.vercel.app",
                 "http://localhost:5173",

@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "contracts")
@@ -33,12 +34,8 @@ public class ContractEntity {
     @JoinColumn(name = "branch_id", nullable = false)
     private BranchEntity branch;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private ProductEntity product;
-
-    @Column(nullable = false)
-    private Integer quantity;
+    @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL)
+    private List<ContractItemEntity> items;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
