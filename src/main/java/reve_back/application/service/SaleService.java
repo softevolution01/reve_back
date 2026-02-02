@@ -76,14 +76,13 @@ public class SaleService implements CreateSaleUseCase {
         BigDecimal totalSurcharge = BigDecimal.ZERO;
         Set<String> methodNames = new HashSet<>();
 
-        // Mapa para acumular pagos por método (Ej: "YAPE"->20, "EFECTIVO"->50)
         Map<String, BigDecimal> paymentsToRegister = new HashMap<>();
 
         for (PaymentRequest pReq : request.payments()) {
             PaymentMethod pm = paymentMethodRepositoryPort.findById(pReq.paymentMethodId())
                     .orElseThrow(() -> new RuntimeException("Método de pago no encontrado"));
 
-            String methodName = pm.name().toUpperCase(); // Normalizamos mayúsculas
+            String methodName = pm.name().toUpperCase();
             methodNames.add(methodName);
 
             BigDecimal surcharge = BigDecimal.ZERO;
@@ -98,8 +97,7 @@ public class SaleService implements CreateSaleUseCase {
 
             salePayments.add(new SalePayment(null, pReq.paymentMethodId(), pm.name(), pReq.amount(), surcharge));
 
-            // Acumulamos el monto total (Monto + Recargo) para el registro en caja
-            BigDecimal totalLineAmount = pReq.amount().add(surcharge);
+            BigDecimal totalLineAmount = pReq.amount();
             paymentsToRegister.merge(methodName, totalLineAmount, BigDecimal::add);
         }
         String paymentMethodName = (methodNames.size() > 1) ? "MIXTO" : methodNames.iterator().next();
@@ -251,9 +249,9 @@ public class SaleService implements CreateSaleUseCase {
                 manageCashSessionUseCase.registerMovement(
                         branch.id(),
                         request.userId(),
-                        "VENTA", // Usamos "VENTA" para que no se mezcle con "INGRESO" manual
+                        "VENTA",
                         amount,
-                        "Venta " + method + " #" + savedSale.id(), // Ej: "Venta YAPE #53"
+                        "Venta " + method + " #" + savedSale.id(),
                         method
                 );
             }

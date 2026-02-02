@@ -207,7 +207,6 @@ public class ContractService {
         ContractEntity contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new RuntimeException("Contrato no encontrado"));
 
-        // 2. BUSCAMOS EL MÉTODO DE PAGO
         PaymentMethodEntity pm = sprigDataPaymentMethodRepository.findById(paymentMethodId)
                 .orElseThrow(() -> new RuntimeException("Método de pago no encontrado"));
 
@@ -215,7 +214,6 @@ public class ContractService {
             throw new RuntimeException("El contrato no está pendiente.");
         }
 
-        // 3. REGISTRAR CAJA SI HAY SALDO PENDIENTE
         if (contract.getPendingBalance().compareTo(BigDecimal.ZERO) > 0) {
 
             manageCashSessionUseCase.registerMovement(
