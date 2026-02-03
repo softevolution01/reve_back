@@ -114,4 +114,13 @@ public class JpaBottleRepositoryAdapter implements BottleRepositoryPort {
                 .findSellableBottleForSale(productId, warehouseId)
                 .map(mapper::toDomain);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> findLastBarcodeByPrefix(String prefix) {
+        return springDataBottleRepository.findTopByBarcodeStartsWithOrderByBarcodeDesc(prefix)
+                .map(BottleEntity::getBarcode);
+    }
+
+
 }
