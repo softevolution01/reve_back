@@ -44,20 +44,18 @@ public class CashSessionService implements ManageCashSessionUseCase {
     @Override
     @Transactional(readOnly = true)
     public CashStatusResponse getSessionStatus(Long branchId) {
-        // 1. Obtener Almacén
         var branch = branchPort.findById(branchId)
                 .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"));
 
         Long warehouseId = branch.warehouseId();
 
-        // 2. Buscar sesión
         var sessionOpt = cashSessionPort.findOpenSessionByWarehouse(warehouseId);
 
         if (sessionOpt.isEmpty()) {
             return new CashStatusResponse(
                     "CLOSED",
                     null,
-                    BigDecimal.ZERO, // initialCash (Corregido orden según tu Record anterior)
+                    BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
                     BigDecimal.ZERO,
@@ -72,7 +70,6 @@ public class CashSessionService implements ManageCashSessionUseCase {
 
         List<PaymentMethodSummary> breakdownList = springDataCashMovementRepository.getVentaBreakdownBySession(sessionId);
 
-        // B. Convertimos a Mapa para enviarlo al Frontend
         Map<String, BigDecimal> breakdownMap = breakdownList.stream()
                 .collect(Collectors.toMap(
                         summary -> summary.getMethod() != null ? summary.getMethod().toUpperCase() : "DESCONOCIDO",
@@ -111,12 +108,10 @@ public class CashSessionService implements ManageCashSessionUseCase {
 
         Long warehouseId = branch.warehouseId();
 
-        // VALIDACIÓN DE NEGOCIO: Solo una caja por almacén
         if (cashSessionPort.existsOpenSessionByWarehouse(warehouseId)) {
             throw new RuntimeException("La caja de este almacén ya se encuentra abierta.");
         }
 
-        // Crear Objeto de Dominio
         CashSession newSession = new CashSession();
         newSession.setWarehouseId(warehouseId);
         newSession.setOpenedByUserId(userId);
@@ -131,7 +126,6 @@ public class CashSessionService implements ManageCashSessionUseCase {
     @Transactional
     public void closeSession(Long branchId, Long userId, BigDecimal countedCash, String notes) {
 
-        // 1. Obtenemos estado actual (con el desglose calculado)
         CashStatusResponse status = getSessionStatus(branchId);
 
         if (!"OPEN".equals(status.status())) {
@@ -141,11 +135,9 @@ public class CashSessionService implements ManageCashSessionUseCase {
         var branch = branchPort.findById(branchId).orElseThrow();
         var session = cashSessionPort.findOpenSessionByWarehouse(branch.warehouseId()).get();
 
-        // 2. Cálculos de Diferencia (Solo afecta al Efectivo)
         BigDecimal expectedPhysical = status.currentSystemBalance();
         BigDecimal difference = countedCash.subtract(expectedPhysical);
 
-        // 3. Actualizamos la sesión principal
         session.setClosedAt(LocalDateTime.now());
         session.setClosedByUserId(userId);
         session.setFinalCashExpected(expectedPhysical);
@@ -199,23 +191,22 @@ public class CashSessionService implements ManageCashSessionUseCase {
             finalMethod = "EFECTIVO";
         }
 
-        // 3. Fecha Perú
-        LocalDateTime peruTime = ZonedDateTime.now(ZoneId.of("America/Lima")).toLocalDateTime();
+        LocalDateTime peruTime = LocalDateTime.now();
 
         CashMovement movement = new CashMovement(
-                null,                   // id
-                session.getId(),        // sessionId
-                branchId,               // branchId
-                amount,                 // amount
-                type,                   // type
-                description,            // description
-                finalMethod,            // method
-                userId,                 // registeredBy
-                null,                   // registeredByName (El mapper o DB lo resolverá al leer, no al guardar)
-                saleId,                 // saleId
-                contractId,             // contractId <--- AQUÍ SE GUARDA LA REFERENCIA
-                peruTime,               // createdAt
-                Collections.emptyList() // items (Al guardar va vacío, el mapper lo llena al leer)
+                null,
+                session.getId(),
+                branchId,
+                amount,
+                type,
+                description,
+                finalMethod,
+                userId,
+                null,
+                saleId,
+                contractId,
+                peruTime,
+                Collections.emptyList()
         );
 
         cashMovementPort.save(movement);
