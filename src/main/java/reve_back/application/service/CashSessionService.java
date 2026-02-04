@@ -17,8 +17,6 @@ import reve_back.infrastructure.web.dto.CashStatusResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -32,10 +30,7 @@ public class CashSessionService implements ManageCashSessionUseCase {
     private final CashSessionRepositoryPort cashSessionPort;
     private final CashMovementRepositoryPort cashMovementPort;
 
-    // Repositorios auxiliares (Idealmente deberían ser puertos también)
     private final BranchRepositoryPort branchPort;
-    private final SalesRepositoryPort salesRepository;
-    private final SpringDataSaleRepository springDataSaleRepository;
     private final SprigDataPaymentMethodRepository sprigDataPaymentMethodRepository;
     private final SpringDataCashSessionSummaryRepository springDataCashSessionSummaryRepository;
     private final CashSessionMapper cashSessionMapper;
