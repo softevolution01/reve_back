@@ -29,4 +29,6 @@ public interface SpringDataDecantPriceRepository extends JpaRepository<DecantPri
                   )
            \s""")
     List<DecantPriceEntity> findActiveByProductNameLike(@Param("term") String term, Pageable pageable);
+    @Query("SELECT d.barcode FROM DecantPriceEntity d WHERE d.barcode LIKE CONCAT(:prefix, '%') ORDER BY d.barcode DESC")
+    List<String> findLastBarcode(@Param("prefix") String prefix, Pageable pageable);
 }

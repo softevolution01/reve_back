@@ -32,26 +32,18 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
 
         List<DecantPriceEntity> entities = decants.stream()
                 .map(d -> {
-                    // Convertimos Domain -> Entity
                     DecantPriceEntity e = mapper.toEntity(d);
-
-                    // 2. Asignamos la relación JPA correctamente
-                    // (En lugar de setProductId, usamos setProduct con la referencia)
                     e.setProduct(productRef);
-
-                    // 3. Lógica de Negocio: Generación automática de Barcode/Imagen
-                    if (e.getBarcode() == null || e.getBarcode().isBlank()) {
-                        String code = BarcodeGenerator.generateAlphanumeric(12);
-                        e.setBarcode(code);
-                        // Asumiendo que agregaste este campo a tu entidad como vimos en el mapper anterior
-                        e.setImageBarcode("/storage/barcodes/" + code + ".png");
+                    if (d.barcode() != null && !d.barcode().isEmpty()) {
+                        e.setBarcode(d.barcode());
+                    }else {
+                        String fallback = BarcodeGenerator.generateNextSequence(null, "D");
+                        e.setBarcode(fallback);
                     }
-
                     return e;
                 })
                 .collect(Collectors.toList());
 
-        // 4. Guardamos y volvemos a convertir a Domain
         return repository.saveAll(entities).stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
@@ -85,5 +77,12 @@ public class JpaDecantPriceRepositoryAdapter implements DecantPriceRepositoryPor
     @Transactional(readOnly = true)
     public Optional<DecantPrice> findById(Long id) {
         return repository.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> findLastBarcodeByPrefix(String prefix) {
+        List<String> results = repository.findLastBarcode(prefix, PageRequest.of(0, 1));
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
 }

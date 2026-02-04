@@ -17,12 +17,21 @@ public class BarcodeGenerator {
     private BarcodeGenerator() {
     }
 
-    public static String generateAlphanumeric(int length) {
-        StringBuilder sb = new StringBuilder(length);
-        for (int i = 0; i < length; i++) {
-            sb.append(ALPHANUMERIC_CHARS.charAt(random.nextInt(ALPHANUMERIC_CHARS.length())));
+    public static String generateNextSequence(String lastCode, String prefix) {
+        if (lastCode == null || lastCode.isEmpty()) {
+            return prefix + "0001";
         }
-        return sb.toString();
+
+        try {
+            String numericPart = lastCode.substring(1);
+            int number = Integer.parseInt(numericPart);
+
+            number++;
+
+            return prefix + String.format("%04d", number);
+        } catch (NumberFormatException e) {
+            return prefix + "0001";
+        }
     }
 
     public static String generateBarcodeImageBase64(String barcodeText) {
@@ -41,9 +50,5 @@ public class BarcodeGenerator {
         }catch (Exception e){
             throw  new RuntimeException("Error generando código de barras: " + e.getMessage());
         }
-    }
-    public static String generateFullBarcode(int length) {
-        String text = generateAlphanumeric(length);
-        return generateBarcodeImageBase64(text);
     }
 }

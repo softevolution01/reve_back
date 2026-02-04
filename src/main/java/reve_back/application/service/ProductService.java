@@ -14,7 +14,6 @@ import reve_back.infrastructure.mapper.ProductDtoMapper;
 import reve_back.infrastructure.util.BarcodeGenerator;
 import reve_back.infrastructure.web.dto.*;
 
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,6 +48,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         Product savedProduct = productRepositoryPort.save(product);
 
         List<Bottle> bottlesToSave = new ArrayList<>();
+        String lastBottleCode = bottleRepositoryPort.findLastBarcodeByPrefix("C")
+                .orElse(null);
 
         if (request.bottles() == null || request.bottles().isEmpty()) {
 
@@ -57,12 +58,16 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 throw new RuntimeException("No hay almacenes registrados (necesarios para el stock).");
             }
             for (Warehouse warehouse : warehouses) {
+
+                String nextCode = BarcodeGenerator.generateNextSequence(lastBottleCode, "C");
+                lastBottleCode = nextCode;
+
                 bottlesToSave.add(new Bottle(
                         null,
                         savedProduct.id(),
                         warehouse.id(),
                         BottlesStatus.AGOTADA.getValue(),
-                        BarcodeGenerator.generateAlphanumeric(12),
+                        nextCode,
                         0,
                         0,
                         0
@@ -81,9 +86,12 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 ));
             }
         } else {
-            bottlesToSave = request.bottles().stream()
-                    .map(req -> productDtoMapper.toBottleDomain(req, savedProduct.id()))
-                    .collect(Collectors.toList());
+            for (BottleCreationRequest req : request.bottles()) {
+                String nextCode = BarcodeGenerator.generateNextSequence(lastBottleCode, "C");
+                lastBottleCode = nextCode;
+
+                bottlesToSave.add(productDtoMapper.toBottleDomain(req, savedProduct.id(), nextCode));
+            }
         }
 
         List<Bottle> savedBottles;
@@ -101,19 +109,34 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
         List<DecantPrice> savedDecants = List.of();
 
         if (request.decants() != null && !request.decants().isEmpty()) {
-            // CONVERSIÓN: De Request (DTO) a DecantPrice (Dominio)
-            List<DecantPrice> decantsToSave = request.decants().stream()
-                    .map(decantDtoMapper::toDomain)
-                    .toList();
 
-            // Ahora enviamos la lista correcta al puerto
+            String lastDecantCode = decantPriceRepositoryPort.findLastBarcodeByPrefix("D")
+                    .orElse(null);
+
+            List<DecantPrice> decantsToSave = new ArrayList<>();
+
+            for (DecantRequest decReq : request.decants()) {
+                String nextCode = BarcodeGenerator.generateNextSequence(lastDecantCode, "D");
+
+                lastDecantCode = nextCode;
+
+                DecantPrice decant = new DecantPrice(
+                        null,
+                        savedProduct.id(),
+                        decReq.volumeMl(),
+                        decReq.price(),
+                        nextCode,
+                        null
+                );
+                decantsToSave.add(decant);
+            }
+
             savedDecants = decantPriceRepositoryPort.saveAllForProduct(
                     savedProduct.id(),
                     decantsToSave
             );
         }
 
-        // 5. Construir Respuesta Final (Usando Mapper para todo)
         List<BottleCreationResponse> bottleResponses = savedBottles.stream()
                 .map(productDtoMapper::toBottleResponse)
                 .toList();
@@ -128,10 +151,8 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
     @Override
     @Transactional(readOnly = true)
     public ProductPageResponse findAll(int page, int size, String query) {
-        // 1. Obtener IDs de sedes autorizadas para el usuario actual
         Set<Long> userBranchIds = getAuthorizedBranchIds();
 
-        // 2. Obtener la página de productos desde el puerto
         Page<ProductSummaryDTO> productPage;
 
         if (query != null && !query.trim().isEmpty()) {
@@ -238,6 +259,7 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 .collect(Collectors.toMap(Bottle::warehouseId, b -> b, (e1, e2) -> e1));
 
         List<Bottle> bottlesToSync = new ArrayList<>();
+        String lastBottleCode = null;
         if (request.bottles() != null) {
             for (BottleCreationRequest req : request.bottles()) {
                 Bottle existing = existingBottlesMap.get(req.warehouseId());
@@ -249,12 +271,19 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             req.remainingVolumeMl() != null ? req.remainingVolumeMl() : existing.remainingVolumeMl(),
                             req.quantity() != null ? req.quantity() : existing.quantity()));
                 } else {
-                    bottlesToSync.add(productDtoMapper.toBottleDomain(req, id));
+                    if (lastBottleCode == null) {
+                        lastBottleCode = bottleRepositoryPort.findLastBarcodeByPrefix("C").orElse(null);
+                    }
+                    String nextCode = BarcodeGenerator.generateNextSequence(lastBottleCode, "C");
+                    lastBottleCode = nextCode;
+
+                    bottlesToSync.add(productDtoMapper.toBottleDomain(req, id, nextCode));
                 }
             }
         }
 
         if (!bottlesToSync.isEmpty()) bottleRepositoryPort.saveAll(bottlesToSync);
+        String lastDecantCode = null;
 
         if (request.decants() != null) {
             List<DecantPrice> currentDecants = decantPriceRepositoryPort.findAllByProductId(id);
@@ -277,14 +306,13 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                             existingDecant.imageBarcode()
                     ));
                 } else {
-                    decantsToSave.add(new DecantPrice(
-                            null,
-                            id,
-                            decReq.volumeMl(),
-                            decReq.price(),
-                            BarcodeGenerator.generateAlphanumeric(12),
-                            null
-                    ));
+                    if (lastDecantCode == null) {
+                        lastDecantCode = decantPriceRepositoryPort.findLastBarcodeByPrefix("D").orElse(null);
+                    }
+                    String nextCode = BarcodeGenerator.generateNextSequence(lastDecantCode, "D");
+                    lastDecantCode = nextCode;
+
+                    decantsToSave.add(new DecantPrice(null, id, decReq.volumeMl(), decReq.price(), nextCode, null));
                 }
             }
 
@@ -293,7 +321,6 @@ public class ProductService implements ListProductsUseCase, CreateProductUseCase
                 decantPriceRepositoryPort.saveAllForProduct(id, decantsToSave);
             }
         }
-        // =================================================================================
 
         return getProductDetails(id);
     }

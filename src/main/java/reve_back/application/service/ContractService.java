@@ -125,15 +125,12 @@ public class ContractService {
                 quantityNeeded -= take;
             }
 
-            // --- CALCULO FINANCIERO DEL ITEM ---
             BigDecimal itemPrice = BigDecimal.valueOf(product.getPrice());
             BigDecimal itemSubtotal = itemPrice.multiply(BigDecimal.valueOf(itemReq.quantity()));
 
             totalBasePrice = totalBasePrice.add(itemSubtotal);
-
-            // --- CREAR ENTIDAD DETALLE ---
             ContractItemEntity detail = ContractItemEntity.builder()
-                    .contract(contract) // Vinculación
+                    .contract(contract)
                     .product(product)
                     .quantity(itemReq.quantity())
                     .unitPrice(itemPrice)
@@ -143,7 +140,6 @@ public class ContractService {
             contract.getItems().add(detail);
         }
 
-        // 4. Totales Globales del Contrato
         BigDecimal finalPrice = totalBasePrice.subtract(request.discount());
         BigDecimal pendingBalance = finalPrice.subtract(request.advancePayment());
 
@@ -155,28 +151,23 @@ public class ContractService {
 
         ContractEntity savedContract = contractRepository.save(contract);
 
-        // 5. REGISTRAR CAJA (ADELANTO)
         if (request.advancePayment().compareTo(BigDecimal.ZERO) > 0) {
 
             PaymentMethodEntity pm = sprigDataPaymentMethodRepository.findById(request.paymentMethodId())
                     .orElseThrow(() -> new RuntimeException("Método no encontrado"));
 
-            // A. El monto que reduce la deuda (BASE)
-            BigDecimal debtAmount = request.advancePayment(); // Ej: 200.00
+            BigDecimal debtAmount = request.advancePayment();
 
-            // B. El monto que entra a caja (TOTAL con recargo)
-            BigDecimal cashAmount = debtAmount; // Inicialmente iguales
+            BigDecimal cashAmount = debtAmount;
 
-            // Si hay recargo (Ej: 4%), lo calculamos y sumamos
             if (pm.getSurchargePercentage() != null && pm.getSurchargePercentage().compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal surcharge = debtAmount
                         .multiply(pm.getSurchargePercentage())
                         .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
-                cashAmount = debtAmount.add(surcharge); // Ej: 200 + 8 = 208.00
+                cashAmount = debtAmount.add(surcharge);
             }
 
-            // C. Registramos en Caja el monto inflado (208)
             manageCashSessionUseCase.registerMovement(
                     request.branchId(),
                     request.userId(),
