@@ -32,12 +32,10 @@ public class PromotionController {
     public ResponseEntity<SaleSimulationResponse> calculate(
             @RequestBody SaleSimulationRequest request) {
 
-        // 1. Mapear DTO de entrada a Records de dominio
         List<CartItem> domainItems = request.items().stream()
                 .map(this::mapToDomain)
                 .toList();
 
-        // 2. Ejecutar la simulación
         SaleSimulationResponse response = saleuseCase.calculateSimulation(
                 domainItems,
                 request.promotionId()

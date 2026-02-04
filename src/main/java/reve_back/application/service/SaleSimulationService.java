@@ -16,7 +16,10 @@ import reve_back.infrastructure.web.dto.SaleSimulationResponse;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -48,54 +51,66 @@ public class SaleSimulationService implements SaleSimulationUseCase {
         return buildResponse(cartItems, promoResult);
     }
 
-    private SaleSimulationResponse buildResponse(List<CartItem> items, StrategyResult promoResult) {
-        BigDecimal manualDiscountTotal = BigDecimal.ZERO;
+    private SaleSimulationResponse buildResponse(List<CartItem> incomingItems, StrategyResult promoResult) {
+
+        // 1. COPIA MUTABLE
+        List<CartItem> items = new ArrayList<>(incomingItems);
+
+        // 2. ORDENAMIENTO (Prioridad a items SIN descuento manual para las promos automáticas)
+        items.sort(Comparator.comparing(item ->
+                item.manualDiscount() != null ? item.manualDiscount() : BigDecimal.ZERO
+        ));
+
         BigDecimal totalBruto = BigDecimal.ZERO;
-
-        // 1. Descuento automático (Estrategia)
         BigDecimal systemDiscount = promoResult.totalDiscount();
-        List<Long> remainingLocks = new ArrayList<>(promoResult.lockedTempItemIds());
 
-        // 2. Recorremos items para calcular totales y descuentos manuales
+        List<Long> lockedItemIds = new ArrayList<>(promoResult.lockedTempItemIds());
+        List<CartItem> availableForManual = new ArrayList<>();
+
         for (CartItem item : items) {
             totalBruto = totalBruto.add(item.price());
 
-            // ¿El ítem está libre? (NO fue usado por la promo automática)
-            if (remainingLocks.contains(item.tempId())) {
-
-                remainingLocks.remove(item.tempId());
-
-                continue;
-            }
-
-            BigDecimal itemManualDiscount = item.manualDiscount() != null
-                    ? item.manualDiscount()
-                    : BigDecimal.ZERO;
-
-            // B. Validación Lógica
-            if (itemManualDiscount.compareTo(BigDecimal.ZERO) > 0) {
-                // C. Regla: No mayor al precio
-                BigDecimal applicableDiscount = itemManualDiscount.min(item.price());
-                manualDiscountTotal = manualDiscountTotal.add(applicableDiscount);
+            if (lockedItemIds.contains(item.tempId())) {
+                lockedItemIds.remove(item.tempId());
+            } else {
+                // Está libre
+                availableForManual.add(item);
             }
         }
 
-        // 3. Totales Finales
-        BigDecimal totalDiscount = systemDiscount.add(manualDiscountTotal);
+        BigDecimal manualDiscountTotal = BigDecimal.ZERO;
 
-        // Cálculo final: Bruto - Descuentos
+        Map<Long, List<CartItem>> itemsGrouped = availableForManual.stream()
+                .collect(Collectors.groupingBy(CartItem::tempId));
+
+        for (List<CartItem> group : itemsGrouped.values()) {
+            if (group.isEmpty()) continue;
+
+            BigDecimal groupTotalPrice = group.stream()
+                    .map(CartItem::price)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal targetDiscount = group.get(0).manualDiscount() != null
+                    ? group.get(0).manualDiscount()
+                    : BigDecimal.ZERO;
+
+            BigDecimal applicableDiscount = targetDiscount.min(groupTotalPrice);
+
+            manualDiscountTotal = manualDiscountTotal.add(applicableDiscount);
+        }
+
+        BigDecimal totalDiscount = systemDiscount.add(manualDiscountTotal);
         BigDecimal finalAmount = totalBruto.subtract(totalDiscount);
 
-        // D. Seguridad Final: El total nunca puede ser negativo
         if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
             finalAmount = BigDecimal.ZERO;
         }
 
         return new SaleSimulationResponse(
-                totalDiscount,           // Suma de ambos descuentos
-                systemDiscount,          // Solo Promo Automática
-                manualDiscountTotal,     // Solo Manual
-                finalAmount,             // A Pagar
+                totalDiscount,
+                systemDiscount,
+                manualDiscountTotal,
+                finalAmount,
                 promoResult.lockedTempItemIds(),
                 promoResult.strategyCode(),
                 "Simulación calculada exitosamente"

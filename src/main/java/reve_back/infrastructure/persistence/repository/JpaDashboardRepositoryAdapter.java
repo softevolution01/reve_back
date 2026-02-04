@@ -71,7 +71,6 @@ public class JpaDashboardRepositoryAdapter implements DashboardRepositoryPort {
 
     private SessionReportResponse mapToSessionResponse(CashSessionEntity entity) {
 
-        // 1. Mapeo de Summaries (Igual que antes)
         List<SessionSummaryResponse> summaries = Optional.ofNullable(entity.getSummaries())
                 .orElse(Collections.emptyList())
                 .stream()
@@ -81,39 +80,34 @@ public class JpaDashboardRepositoryAdapter implements DashboardRepositoryPort {
                 ))
                 .toList();
 
-        // 2. Mapeo de Movements (CON LOS ITEMS)
         List<SessionMovementResponse> movements = Optional.ofNullable(entity.getMovements())
                 .orElse(Collections.emptyList())
                 .stream()
                 .sorted(Comparator.comparing(CashMovementEntity::getCreatedAt))
                 .map(m -> {
-                    // --- LÓGICA PARA OBTENER LOS ITEMS ---
                     List<CashMovementItem> items = new ArrayList<>();
 
-                    // CASO A: Es una VENTA
                     if (m.getSale() != null && m.getSale().getItems() != null) {
                         items = m.getSale().getItems().stream()
                                 .map(item -> new CashMovementItem(
                                         item.getProduct().getBrand(),
                                         item.getQuantity(),
                                         item.getUnitPrice(),
-                                        item.getFinalSubtotal() // Usa el subtotal final de la venta
+                                        item.getFinalSubtotal()
                                 ))
                                 .toList();
                     }
-                    // CASO B: Es un CONTRATO (Adelanto o Finalización)
                     else if (m.getContract() != null && m.getContract().getItems() != null) {
                         items = m.getContract().getItems().stream()
                                 .map(item -> new CashMovementItem(
                                         item.getProduct().getBrand(),
                                         item.getQuantity(),
                                         item.getUnitPrice(),
-                                        item.getSubtotal() // Usa el subtotal del item del contrato
+                                        item.getSubtotal()
                                 ))
                                 .toList();
                     }
 
-                    // --- CONSTRUCCIÓN DEL DTO ---
                     return new SessionMovementResponse(
                             m.getId(),
                             m.getCreatedAt().format(DateTimeFormatter.ofPattern("HH:mm")),
