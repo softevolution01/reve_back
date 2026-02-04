@@ -60,4 +60,7 @@ public interface SpringDataBottleRepository extends JpaRepository<BottleEntity,L
             "AND b.barcode IS NOT NULL ")
     Optional<BottleEntity> findSellableBottleForSale(@Param("productId") Long productId,
                                                      @Param("warehouseId") Long warehouseId);
+
+    Optional<BottleEntity> findTopByBarcodeStartsWithOrderByBarcodeDesc(String prefix);
+
 }

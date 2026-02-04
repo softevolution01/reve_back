@@ -99,13 +99,13 @@ public class ProductDtoMapper {
         );
     }
 
-    public Bottle toBottleDomain(BottleCreationRequest req, Long productId) {
+    public Bottle toBottleDomain(BottleCreationRequest req, Long productId, String generatedBarcode) {
         return new Bottle(
                 null,
                 productId,
                 req.warehouseId(),
                 req.status(),
-                BarcodeGenerator.generateAlphanumeric(12),
+                generatedBarcode,
                 req.volumeMl(),
                 req.remainingVolumeMl(),
                 req.quantity()
