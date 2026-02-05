@@ -10,9 +10,6 @@ import reve_back.infrastructure.web.dto.LoginRequest;
 import reve_back.infrastructure.web.dto.RefreshTokenRequest;
 import reve_back.infrastructure.web.dto.RegisterRequest;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/auth")
@@ -45,14 +42,5 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest dto) {
         return ResponseEntity.ok(refreshTokenUseCase.refreshToken(dto));
-    }
-
-    @GetMapping("/debug-time")
-    public ResponseEntity<Map<String, String>> debugTime() {
-        Map<String, String> times = new HashMap<>();
-        times.put("jvm_default_timezone", java.util.TimeZone.getDefault().getID());
-        times.put("local_date_time", java.time.LocalDateTime.now().toString());
-        times.put("zoned_date_time_lima", java.time.ZonedDateTime.now(java.time.ZoneId.of("America/Lima")).toString());
-        return ResponseEntity.ok(times);
     }
 }
