@@ -14,6 +14,10 @@ public record ContractListResponse(
         BigDecimal priceWithDiscount, // Precio Final
         BigDecimal advancePayment,
         BigDecimal pendingBalance,
-        String status
+        String status,
+        String advancePaymentMethod, // Ej: "Yape"
+        String finalPaymentMethod,   // Ej: "Efectivo"
+        BigDecimal finalPaymentAmount,
+        BigDecimal initialPaymentAmount
 ) {
 }

@@ -32,6 +32,7 @@ public class ContractService {
     private final InventoryMovementRepositoryPort inventoryMovementRepositoryPort;
     private final BranchRepositoryPort branchRepositoryPort;
     private final SprigDataPaymentMethodRepository sprigDataPaymentMethodRepository;
+    private final SpringDataCashMovementRepository springDataCashMovementRepository;
 
     @Transactional(readOnly = true)
     public List<ProductContractLookupResponse> findProductsForContract(Long branchId, String query) {
@@ -125,15 +126,23 @@ public class ContractService {
                 quantityNeeded -= take;
             }
 
-            BigDecimal itemPrice = BigDecimal.valueOf(product.getPrice());
-            BigDecimal itemSubtotal = itemPrice.multiply(BigDecimal.valueOf(itemReq.quantity()));
+            BigDecimal baseProductPrice = BigDecimal.valueOf(product.getPrice());
+            BigDecimal extraAmount = itemReq.extraAmount() != null ? itemReq.extraAmount() : BigDecimal.ZERO;
+            BigDecimal itemSubtotal = baseProductPrice
+                    .multiply(BigDecimal.valueOf(itemReq.quantity()))
+                    .add(extraAmount);
+
+            BigDecimal effectiveUnitPrice = itemSubtotal.divide(
+                    BigDecimal.valueOf(itemReq.quantity()), 2, RoundingMode.HALF_UP
+            );
 
             totalBasePrice = totalBasePrice.add(itemSubtotal);
+
             ContractItemEntity detail = ContractItemEntity.builder()
                     .contract(contract)
                     .product(product)
                     .quantity(itemReq.quantity())
-                    .unitPrice(itemPrice)
+                    .unitPrice(effectiveUnitPrice)
                     .subtotal(itemSubtotal)
                     .build();
 
@@ -188,17 +197,48 @@ public class ContractService {
                 .map(c -> {
 
                     String productsSummary = c.getItems().stream()
-                            .map(item -> item.getProduct().getBrand())
-                            .collect(Collectors.joining(", "));
+                            .map(item -> {
+                                String brand = item.getProduct().getBrand();
+                                String line = item.getProduct().getLine();
+                                String conc = item.getProduct().getConcentration() != null
+                                        ? item.getProduct().getConcentration()
+                                        : "";
 
-                    if (productsSummary.length() > 50) {
-                        productsSummary = productsSummary.substring(0, 47) + "...";
-                    }
+                                // Retornamos "MARCA LINEA CONCENTRACION"
+                                return (brand + " " + line + " " + conc).trim();
+                            })
+                            .collect(Collectors.joining("\n"));
 
                     Integer totalQuantity = c.getItems().stream()
                             .mapToInt(ContractItemEntity::getQuantity)
                             .sum();
 
+                    List<CashMovementEntity> payments = springDataCashMovementRepository.findByContractIdOrderByCreatedAtAsc(c.getId());
+
+                    String advanceMethod = "---";
+                    BigDecimal initialPaymentAmount = BigDecimal.ZERO; // Monto real cobrado al inicio
+
+                    String finalMethod = "---";
+                    BigDecimal finalPaymentAmount = BigDecimal.ZERO;   // Monto real cobrado al cierre
+
+                    if (!payments.isEmpty()) {
+                        CashMovementEntity firstPayment = payments.get(0);
+                        advanceMethod = firstPayment.getMethod();
+                        initialPaymentAmount = firstPayment.getAmount();
+
+                        if (payments.size() > 1) {
+                            for (int i = 1; i < payments.size(); i++) {
+                                finalPaymentAmount = finalPaymentAmount.add(payments.get(i).getAmount());
+                            }
+
+                            // El método de cierre es el del último pago realizado
+                            finalMethod = payments.get(payments.size() - 1).getMethod();
+                        }
+                    }
+
+                    // ---------------------------------------------------------
+                    // 4. RETORNO DEL DTO
+                    // ---------------------------------------------------------
                     return new ContractListResponse(
                             c.getId(),
                             c.getClient().getFullname(),
@@ -208,9 +248,13 @@ public class ContractService {
                             c.getEndDate(),
                             c.getPriceBase(),
                             c.getFinalPrice(),
-                            c.getAdvancePayment(),
+                            c.getAdvancePayment(), // Monto acordado (lógico)
                             c.getPendingBalance(),
-                            c.getStatus()
+                            c.getStatus(),
+                            advanceMethod,        // Nombre método adelanto (ej: TARJETA)
+                            finalMethod,          // Nombre método cierre
+                            finalPaymentAmount,   // Monto Real Cierre (Sumado)
+                            initialPaymentAmount  // Monto Real Adelanto (Recuperado de caja)
                     );
                 });
     }
