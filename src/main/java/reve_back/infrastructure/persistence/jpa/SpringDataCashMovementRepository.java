@@ -38,4 +38,5 @@ public interface SpringDataCashMovementRepository extends JpaRepository<CashMove
     BigDecimal sumTotalExpenseBySession(@Param("sessionId") Long sessionId);
 
     List<CashMovementEntity> findByCashSessionIdOrderByCreatedAtDesc(Long sessionId);
+    List<CashMovementEntity> findByContractIdOrderByCreatedAtAsc(Long contractId);
 }
