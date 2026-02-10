@@ -62,24 +62,56 @@ public class CashMovementDtoMapper {
         // OPCIÓN A: VIENE DE UNA VENTA
         if (entity.getSale() != null && entity.getSale().getItems() != null) {
             items = entity.getSale().getItems().stream()
-                    .map(item -> new CashMovementItem(
-                            // Validamos que el producto no sea null
-                            item.getProduct() != null ? item.getProduct().getBrand() : "Producto ???",
-                            item.getQuantity(),
-                            item.getUnitPrice(), // Precio base real
-                            item.getFinalSubtotal()
-                    ))
+                    .map(item -> {
+                        // 1. Obtener producto
+                        var p = item.getProduct();
+                        if (p == null) return new CashMovementItem("Producto desconocido", item.getQuantity(), item.getUnitPrice(), item.getFinalSubtotal());
+
+                        // 2. Extraer ML del DecantPrice (si existe)
+                        String volumeStr = "";
+                        if (item.getDecantPrice() != null && item.getDecantPrice().getVolumeMl() != null) {
+                            volumeStr = item.getDecantPrice().getVolumeMl() + "ml";
+                        }
+
+                        // 3. Construir Nombre Completo (Marca + Linea + Conc + ML)
+                        // Usamos String.join y replaceAll para evitar dobles espacios si algún campo es null
+                        String fullName = String.join(" ",
+                                p.getBrand(),
+                                p.getLine() != null ? p.getLine() : "",
+                                p.getConcentration() != null ? p.getConcentration() : "",
+                                volumeStr
+                        ).trim().replaceAll("\\s+", " "); // Elimina espacios extra
+
+                        return new CashMovementItem(
+                                fullName,
+                                item.getQuantity(),
+                                item.getUnitPrice(),
+                                item.getFinalSubtotal()
+                        );
+                    })
                     .toList();
         }
         // OPCIÓN B: VIENE DE UN CONTRATO
         else if (entity.getContract() != null && entity.getContract().getItems() != null) {
             items = entity.getContract().getItems().stream()
-                    .map(item -> new CashMovementItem(
-                            item.getProduct() != null ? item.getProduct().getBrand() : "Producto ???",
-                            item.getQuantity(),
-                            item.getUnitPrice(), // Precio base real
-                            item.getSubtotal()
-                    ))
+                    .map(item -> {
+                        var p = item.getProduct();
+                        if (p == null) return new CashMovementItem("Producto desconocido", item.getQuantity(), item.getUnitPrice(), item.getSubtotal());
+
+                        // En contratos asumimos que no hay DecantPrice (o lo agregas si tu entidad ContractItem lo tiene)
+                        String fullName = String.join(" ",
+                                p.getBrand(),
+                                p.getLine() != null ? p.getLine() : "",
+                                p.getConcentration() != null ? p.getConcentration() : ""
+                        ).trim().replaceAll("\\s+", " ");
+
+                        return new CashMovementItem(
+                                fullName,
+                                item.getQuantity(),
+                                item.getUnitPrice(),
+                                item.getSubtotal()
+                        );
+                    })
                     .toList();
         }
 

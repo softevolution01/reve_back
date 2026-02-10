@@ -87,20 +87,36 @@ public class JpaDashboardRepositoryAdapter implements DashboardRepositoryPort {
                 .map(m -> {
                     List<CashMovementItem> items = new ArrayList<>();
 
+                    // CASO 1: ES UNA VENTA (Sale)
                     if (m.getSale() != null && m.getSale().getItems() != null) {
                         items = m.getSale().getItems().stream()
-                                .map(item -> new CashMovementItem(
-                                        item.getProduct().getBrand(),
-                                        item.getQuantity(),
-                                        item.getUnitPrice(),
-                                        item.getFinalSubtotal()
-                                ))
+                                .map(item -> {
+                                    // 1. Lógica para extraer los ML de forma segura (evitando NullPointerException)
+                                    String volumeStr = "";
+                                    if (item.getDecantPrice() != null && item.getDecantPrice().getVolumeMl() != null) {
+                                        volumeStr = " " + item.getDecantPrice().getVolumeMl() + "ml";
+                                    }
+
+                                    // 2. Construimos el nombre completo
+                                    String productFullName = item.getProduct().getBrand()
+                                            + " " + item.getProduct().getLine()
+                                            + " " + item.getProduct().getConcentration()
+                                            + volumeStr; // <-- Aquí agregamos los ML
+
+                                    return new CashMovementItem(
+                                            productFullName,
+                                            item.getQuantity(),
+                                            item.getUnitPrice(),
+                                            item.getFinalSubtotal()
+                                    );
+                                })
                                 .toList();
                     }
+                    // CASO 2: ES UN CONTRATO (Si aplica lógica similar)
                     else if (m.getContract() != null && m.getContract().getItems() != null) {
                         items = m.getContract().getItems().stream()
                                 .map(item -> new CashMovementItem(
-                                        item.getProduct().getBrand(),
+                                        item.getProduct().getBrand() + " " + item.getProduct().getLine() + " " + item.getProduct().getConcentration(),
                                         item.getQuantity(),
                                         item.getUnitPrice(),
                                         item.getSubtotal()
