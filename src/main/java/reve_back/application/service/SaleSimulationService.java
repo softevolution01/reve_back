@@ -65,15 +65,43 @@ public class SaleSimulationService implements SaleSimulationUseCase {
         BigDecimal systemDiscount = promoResult.totalDiscount();
 
         List<Long> lockedItemIds = new ArrayList<>(promoResult.lockedTempItemIds());
+
+        // =========================================================================================
+        // NUEVA LÓGICA: 4to DECANT AL 50
+        // =========================================================================================
+        if (!lockedItemIds.isEmpty()) {
+            // A. Buscamos los "sobrantes": Decants activos que NO fueron usados en el 3x2
+            List<CartItem> leftoverDecants = items.stream()
+                    .filter(item -> item.isEligibleForPromo()) // Solo Decants y habilitados
+                    .filter(item -> !lockedItemIds.contains(item.tempId())) // Que no estén ya en el 3x2
+                    .sorted(Comparator.comparing(CartItem::price).reversed()) // El más caro de los sobrantes primero
+                    .toList();
+
+            // B. Si hay sobrantes (significa que tenemos un 4to, 5to item, etc.)
+            if (!leftoverDecants.isEmpty()) {
+                // Tomamos el primero de los sobrantes (que sería el 4to item en lógica global)
+                CartItem fourthItem = leftoverDecants.get(0);
+
+                // C. Calculamos el 50% de descuento
+                BigDecimal halfPriceDiscount = fourthItem.price().multiply(new BigDecimal("0.5"));
+
+                // D. Aplicamos el descuento y bloqueamos el item
+                systemDiscount = systemDiscount.add(halfPriceDiscount);
+                lockedItemIds.add(fourthItem.tempId());
+            }
+        }
+        // =========================================================================================
+
         List<CartItem> availableForManual = new ArrayList<>();
 
         for (CartItem item : items) {
             totalBruto = totalBruto.add(item.price());
 
             if (lockedItemIds.contains(item.tempId())) {
-                lockedItemIds.remove(item.tempId());
+                // Si el item fue usado en 3x2 O fue el 4to item al 50%, ya no recibe descuento manual
+                lockedItemIds.remove(item.tempId()); // removemos para manejar duplicados si los hubiera
             } else {
-                // Está libre
+                // Está libre para descuento manual
                 availableForManual.add(item);
             }
         }
@@ -107,13 +135,13 @@ public class SaleSimulationService implements SaleSimulationUseCase {
         }
 
         return new SaleSimulationResponse(
-                totalDiscount,
-                systemDiscount,
-                manualDiscountTotal,
-                finalAmount,
+                totalDiscount,           // Suma de ambos descuentos
+                systemDiscount,          // 3x2 + el 50% del 4to item
+                manualDiscountTotal,     // Solo Manual
+                finalAmount,             // A Pagar
                 promoResult.lockedTempItemIds(),
                 promoResult.strategyCode(),
-                "Simulación calculada exitosamente"
+                "Simulación calculada exitosamente (Incluye lógica 4to item al 50%)"
         );
     }
 
