@@ -8,6 +8,7 @@ public record SaleCreationRequest(
         Long userId,
         Long clientId,
         BigDecimal systemDiscount,
+        Long promotionId,
 
         List<SaleItemRequest> items,
         List<PaymentRequest> payments

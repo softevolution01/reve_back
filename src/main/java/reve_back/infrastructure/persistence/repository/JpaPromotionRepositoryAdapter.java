@@ -22,8 +22,7 @@ public class JpaPromotionRepositoryAdapter implements PromotionRepositoryPort {
 
     @Override
     public Optional<Promotion> findActivePromotionById(Long id) {
-        return springDataPromotionRepository.findById(id)
-                .filter(PromotionEntity::getIsActive)
+        return springDataPromotionRepository.findActivePromotionWithRules(id)
                 .map(mapper::toDomain);
     }
 
