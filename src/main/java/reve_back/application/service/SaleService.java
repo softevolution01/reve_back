@@ -11,6 +11,9 @@ import reve_back.application.ports.in.ManageCashSessionUseCase;
 import reve_back.application.ports.out.*;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.ClientLoyaltyProgressEntity;
+import reve_back.infrastructure.persistence.entity.PromotionEntity;
+import reve_back.infrastructure.persistence.enums.global.PromotionRuleType;
+import reve_back.infrastructure.persistence.jpa.SpringDataPromotionRepository;
 import reve_back.infrastructure.web.dto.*;
 
 import java.math.BigDecimal;
@@ -27,7 +30,7 @@ public class SaleService implements CreateSaleUseCase {
     private final BranchRepositoryPort branchRepositoryPort;
     private final BottleRepositoryPort bottleRepositoryPort;
     private final DecantPriceRepositoryPort decantPriceRepositoryPort;
-    private final CashMovementRepositoryPort cashMovementRepositoryPort;
+    private final PromotionRepositoryPort promotionRepositoryPort;
     private final LoyaltyProgressRepositoryPort loyaltyProgressRepositoryPort;
     private final ProductRepositoryPort productRepositoryPort;
     private final ClientRepositoryPort clientRepositoryPort;
@@ -71,7 +74,7 @@ public class SaleService implements CreateSaleUseCase {
         }
         Long activeSessionId = sessionOpt.get().getId();
 
-        // 2. Procesamiento de Pagos (CORREGIDO PARA REGISTRAR TODO)
+        // 2. Procesamiento de Pagos
         List<SalePayment> salePayments = new ArrayList<>();
         BigDecimal totalSurcharge = BigDecimal.ZERO;
         Set<String> methodNames = new HashSet<>();
@@ -124,67 +127,98 @@ public class SaleService implements CreateSaleUseCase {
                     BigDecimal.ZERO,
                     domainItem.volumeMlPerUnit(),
                     itemReq.blockedPromo() != null ? itemReq.blockedPromo() : false,
-                    false, "NONE"
+                    itemReq.forcePromo() != null ? itemReq.forcePromo() : false,
+                    "NONE"
             ));
         }
 
-        List<SaleItem> eligibleForPromo = new ArrayList<>();
-        for (SaleItem item : tempItems) {
-            if (item.isPromoLocked()) {
-                for(int i=0; i < item.quantity(); i++) {
-                    eligibleForPromo.add(item);
+        // =================================================================================
+        // 4. LÓGICA DINÁMICA DE PROMOCIONES (Distribución Exacta por Línea)
+        // =================================================================================
+        if (request.promotionId() != null) {
+            // Nota: Usa el nombre de tu repositorio de promociones inyectado aquí
+            Promotion promotion = promotionRepositoryPort.findActivePromotionById(request.promotionId())
+                    .orElseThrow(() -> new RuntimeException("Promoción no encontrada o inactiva"));
+
+            String strategyCode = promotion.strategyCode();
+            int buyQty = extractRuleValue(promotion, PromotionRuleType.CONFIG_BUY_QUANTITY, 3);
+            int payQty = extractRuleValue(promotion, PromotionRuleType.CONFIG_PAY_QUANTITY, 2);
+            BigDecimal extraDiscount = extractBigDecimalRule(promotion, PromotionRuleType.EXTRA_DISCOUNT_PERCENT, new BigDecimal("50.00"));
+            int freeQty = buyQty - payQty;
+
+            // Clase interna para rastrear la unidad exacta y su índice en tempItems
+            class PromoUnit {
+                int originalIndex;
+                BigDecimal price;
+                PromoUnit(int index, BigDecimal price) { this.originalIndex = index; this.price = price; }
+            }
+
+            List<PromoUnit> promoUnits = new ArrayList<>();
+            for (int i = 0; i < tempItems.size(); i++) {
+                SaleItem item = tempItems.get(i);
+                if (item.isPromoLocked() || item.isPromoForced()) {
+                    // Desglosamos por cantidad (Ej: Si lleva 2 de 10ml, creamos 2 unidades separadas)
+                    for (int q = 0; q < item.quantity(); q++) {
+                        promoUnits.add(new PromoUnit(i, item.unitPrice()));
+                    }
+                }
+            }
+
+            // Ordenamos de MAYOR a MENOR precio
+            promoUnits.sort((a, b) -> b.price.compareTo(a.price));
+            Deque<PromoUnit> deque = new ArrayDeque<>(promoUnits);
+
+            // Acumulador de descuentos exactos por línea
+            Map<Integer, BigDecimal> exactLineDiscounts = new HashMap<>();
+
+            while (deque.size() >= buyQty) {
+                // A) Cobrar los M más caros
+                for (int i = 0; i < payQty; i++) {
+                    deque.pollFirst(); // Se saca y se ignora (no hay descuento)
+                }
+
+                // B) Regalar el MÁS BARATO (GRATIS)
+                for (int i = 0; i < freeQty; i++) {
+                    PromoUnit freeUnit = deque.pollLast();
+                    if (freeUnit != null) {
+                        exactLineDiscounts.merge(freeUnit.originalIndex, freeUnit.price, BigDecimal::add);
+                    }
+                }
+
+                // C) El 4to al 50%
+                if ("SANDWICH_PLUS_EXTRA".equals(strategyCode) && !deque.isEmpty()) {
+                    PromoUnit extraUnit = deque.pollLast();
+                    if (extraUnit != null) {
+                        BigDecimal discountAmt = extraUnit.price.multiply(extraDiscount)
+                                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                        exactLineDiscounts.merge(extraUnit.originalIndex, discountAmt, BigDecimal::add);
+                    }
+                }
+            }
+
+            // Aplicar el descuento mapeado exactamente a la línea que le corresponde
+            for (int i = 0; i < tempItems.size(); i++) {
+                SaleItem currentItem = tempItems.get(i);
+                BigDecimal lineDiscount = exactLineDiscounts.getOrDefault(i, BigDecimal.ZERO);
+
+                // Reemplazamos el item en la lista con su descuento real asignado
+                if (lineDiscount.compareTo(BigDecimal.ZERO) > 0 || currentItem.isPromoLocked()) {
+                    tempItems.set(i, new SaleItem(
+                            currentItem.id(), currentItem.productId(), currentItem.decantPriceId(),
+                            currentItem.productName(), currentItem.productBrand(),
+                            currentItem.quantity(), currentItem.unitPrice(),
+                            lineDiscount, // <--- EL DESCUENTO EXACTO DE LA LÍNEA VA AQUÍ
+                            currentItem.manualDiscount(),
+                            BigDecimal.ZERO,
+                            currentItem.volumeMlPerUnit(),
+                            currentItem.isPromoLocked(),
+                            currentItem.isPromoForced(),
+                            strategyCode
+                    ));
                 }
             }
         }
-
-// Ordenamos de MAYOR a MENOR precio
-        eligibleForPromo.sort((a, b) -> b.unitPrice().compareTo(a.unitPrice()));
-
-// Calculamos el descuento real del 3x2
-        BigDecimal totalPromoDiscount = BigDecimal.ZERO;
-        if (eligibleForPromo.size() >= 3) {
-            int groupsOfThree = eligibleForPromo.size() / 3;
-            for (int i = 0; i < groupsOfThree; i++) {
-                int freeItemIndex = (i + 1) * 3 - 1;
-                totalPromoDiscount = totalPromoDiscount.add(eligibleForPromo.get(freeItemIndex).unitPrice());
-            }
-        }
-
-        BigDecimal discountToDistribute = totalPromoDiscount;
-
-        if (discountToDistribute.compareTo(BigDecimal.ZERO) > 0) {
-            // Ordenamos los items originales para aplicar el descuento empezando por el más barato
-            List<Integer> targetIndices = new ArrayList<>();
-            for (int i = 0; i < tempItems.size(); i++) {
-                if (tempItems.get(i).isPromoLocked()) targetIndices.add(i);
-            }
-            targetIndices.sort(Comparator.comparing(i -> tempItems.get(i).unitPrice()));
-
-            for (Integer index : targetIndices) {
-                if (discountToDistribute.compareTo(BigDecimal.ZERO) <= 0) break;
-
-                SaleItem currentItem = tempItems.get(index);
-                BigDecimal lineMaxDiscount = currentItem.unitPrice().multiply(new BigDecimal(currentItem.quantity()));
-
-                // Solo aplicamos lo que falta por distribuir
-                BigDecimal actualDiscountForThisLine = lineMaxDiscount.min(discountToDistribute);
-
-                tempItems.set(index, new SaleItem(
-                        currentItem.id(), currentItem.productId(), currentItem.decantPriceId(),
-                        currentItem.productName(), currentItem.productBrand(),
-                        currentItem.quantity(), currentItem.unitPrice(),
-                        actualDiscountForThisLine,
-                        currentItem.manualDiscount(),
-                        BigDecimal.ZERO,
-                        currentItem.volumeMlPerUnit(),
-                        currentItem.isPromoLocked(),
-                        true,
-                        "3x2_AUTOMATIC"
-                ));
-
-                discountToDistribute = discountToDistribute.subtract(actualDiscountForThisLine);
-            }
-        }
+        // =================================================================================
 
         // 5. Cálculo de Totales Finales
         List<SaleItem> finalSaleItems = new ArrayList<>();
@@ -195,9 +229,10 @@ public class SaleService implements CreateSaleUseCase {
         for (SaleItem item : tempItems) {
             BigDecimal lineGrossTotal = item.unitPrice().multiply(new BigDecimal(item.quantity()));
 
+            // Al gross total le restamos el descuento manual y el SystemDiscount EXACTO de esa línea
             BigDecimal lineNetTotal = lineGrossTotal
                     .subtract(item.manualDiscount())
-                    .subtract(item.systemDiscount()); // Aquí ya viene restado el 3x2
+                    .subtract(item.systemDiscount());
 
             finalSaleItems.add(new SaleItem(
                     item.id(), item.productId(), item.decantPriceId(), item.productName(), item.productBrand(),
@@ -240,7 +275,6 @@ public class SaleService implements CreateSaleUseCase {
         Sale savedSale = salesRepositoryPort.save(saleToSave);
         log.info("✅ Venta Guardada con ID: {}", savedSale.id());
 
-
         paymentsToRegister.forEach((method, amount) -> {
             if (amount.compareTo(BigDecimal.ZERO) > 0) {
                 manageCashSessionUseCase.registerMovement(
@@ -270,7 +304,10 @@ public class SaleService implements CreateSaleUseCase {
                     String typeDisplay = (item.volumeMlPerUnit() != null) ? item.volumeMlPerUnit().intValue() + "ml" : "Botella";
                     String safeProductName = item.productName() != null ? item.productName() : "SIN NOMBRE";
                     String prefix = (item.decantPriceId() == null) ? "BT " : "DC ";
-                    String finalDisplayName = prefix + " " + safeProductName;
+
+                    // Solo agregamos el sufijo PROMO si realmente tuvo un descuento automático asignado
+                    String promoSuffix = item.systemDiscount().compareTo(BigDecimal.ZERO) > 0 ? " (PROMO)" : "";
+                    String finalDisplayName = prefix + " " + safeProductName + promoSuffix;
 
                     BigDecimal totalDiscLine = (item.manualDiscount() == null ? BigDecimal.ZERO : item.manualDiscount())
                             .add(item.systemDiscount() == null ? BigDecimal.ZERO : item.systemDiscount());
@@ -280,7 +317,7 @@ public class SaleService implements CreateSaleUseCase {
                             typeDisplay,
                             item.quantity(),
                             item.unitPrice(),
-                            item.finalSubtotal(),
+                            item.finalSubtotal(), // <--- Esto es lo que imprime tu boleta en "TOTAL"
                             totalDiscLine,
                             item.isPromoForced()
                     );
@@ -623,5 +660,34 @@ public class SaleService implements CreateSaleUseCase {
         ));
 
         return shouldResetLoyalty;
+    }
+
+    // MÉTODOS EXTRACTORES SIMPLIFICADOS PARA TU DOMINIO
+
+    private int extractRuleValue(Promotion promotion, PromotionRuleType type, int defaultValue) {
+        if (promotion == null || promotion.rules() == null) return defaultValue;
+
+        return promotion.rules().stream()
+                .filter(r -> r.ruleType() == type) // Cambiar a getRuleType() si no compila
+                .map(r -> {
+                    if (r.discountValue() != null) { // Cambiar a getDiscountValue() si no compila
+                        return r.discountValue().intValue();
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(defaultValue);
+    }
+
+    private BigDecimal extractBigDecimalRule(Promotion promotion, PromotionRuleType type, BigDecimal defaultValue) {
+        if (promotion == null || promotion.rules() == null) return defaultValue;
+
+        return promotion.rules().stream()
+                .filter(r -> r.ruleType() == type) // Cambiar a getRuleType() si no compila
+                .map(r -> r.discountValue())       // Cambiar a getDiscountValue() si no compila
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(defaultValue);
     }
 }

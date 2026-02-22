@@ -2,11 +2,11 @@ package reve_back.application.service;
 
 import org.springframework.stereotype.Service;
 import reve_back.domain.model.*;
-import reve_back.infrastructure.persistence.enums.global.ItemType;
+import reve_back.infrastructure.persistence.entity.PromotionEntity;
+import reve_back.infrastructure.persistence.enums.global.PromotionRuleType;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class SandwichNxMStrategy implements PromotionStrategy {
@@ -17,32 +17,35 @@ public class SandwichNxMStrategy implements PromotionStrategy {
     }
 
     @Override
-    public StrategyResult execute(List<CartItem> items, int n, int m) {
-        // 1. SEPARACIÓN
+    // CAMBIO CLAVE: Ahora recibe PromotionEntity en lugar de int n, int m
+    public StrategyResult execute(List<CartItem> items, PromotionEntity promotion) {
+
+        int n = extractRuleValue(promotion, PromotionRuleType.CONFIG_BUY_QUANTITY, 3);
+        int m = extractRuleValue(promotion, PromotionRuleType.CONFIG_PAY_QUANTITY, 2);
+
         List<CartItem> candidates = new ArrayList<>();
-        // ... (tu lógica de filtrado de decants/allowPromotions) ...
         for (CartItem item : items) {
+            // Validamos que el ítem participe en promociones o esté forzado
             if (item.allowPromotions() || item.isPromoForced()) {
                 candidates.add(item);
             }
         }
 
-        // 2. ORDENAMIENTO (Mayor a Menor)
+        // 3. ORDENAMIENTO (De mayor a menor precio)
         candidates.sort(Comparator.comparing(CartItem::price).reversed());
         Deque<CartItem> deque = new ArrayDeque<>(candidates);
 
         BigDecimal totalDiscount = BigDecimal.ZERO;
-        ArrayList<Long> lockedTempIds = new ArrayList<>();
+        List<Long> lockedTempIds = new ArrayList<>();
 
-        // 3. CÁLCULO
+        // 4. LÓGICA DE CÁLCULO (Sándwich)
         while (deque.size() >= n) {
 
             // A) COBRAR LOS M MÁS CAROS
             for (int i = 0; i < m; i++) {
                 CartItem paidItem = deque.pollFirst();
                 if (paidItem != null) {
-                    // CORRECCIÓN: Aunque se paga, ES PARTE DE LA PROMO.
-                    // Lo agregamos a la lista de bloqueados.
+                    // Es parte de la promo, se bloquea para no mezclar con otras
                     lockedTempIds.add(paidItem.tempId());
                 }
             }
@@ -52,12 +55,32 @@ public class SandwichNxMStrategy implements PromotionStrategy {
             for (int i = 0; i < freeItemsCount; i++) {
                 CartItem freeItem = deque.pollLast();
                 if (freeItem != null) {
+                    // Sumamos el precio del ítem regalado al descuento total
                     totalDiscount = totalDiscount.add(freeItem.price());
-                    lockedTempIds.add(freeItem.tempId()); // Este ya lo tenías
+                    lockedTempIds.add(freeItem.tempId());
                 }
             }
         }
 
-        return new StrategyResult(totalDiscount, lockedTempIds, "SANDWICH_N_M");
+        return new StrategyResult(totalDiscount, lockedTempIds, getStrategyCode());
+    }
+
+    // --- MÉTODO AUXILIAR PARA EXTRAER LAS REGLAS ---
+    private int extractRuleValue(PromotionEntity promotion, PromotionRuleType type, int defaultValue) {
+        if (promotion == null || promotion.getRules() == null) {
+            return defaultValue;
+        }
+
+        return promotion.getRules().stream()
+                .filter(r -> r.getRuleType() == type)
+                .map(r -> {
+                    // Priorizamos el índice si existe, si no, el valor de descuento
+                    if (r.getItemIndex() != null) return r.getItemIndex();
+                    if (r.getDiscountValue() != null) return r.getDiscountValue().intValue();
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(defaultValue);
     }
 }
