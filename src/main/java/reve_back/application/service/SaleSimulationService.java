@@ -4,14 +4,10 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reve_back.application.ports.in.SaleSimulationUseCase;
-import reve_back.application.ports.out.PromotionRepositoryPort;
 import reve_back.domain.model.*;
 import reve_back.infrastructure.persistence.entity.PromotionEntity;
-import reve_back.infrastructure.persistence.entity.PromotionRuleEntity;
 import reve_back.infrastructure.persistence.enums.global.PromotionRuleType;
 import reve_back.infrastructure.persistence.jpa.SpringDataPromotionRepository;
-import reve_back.infrastructure.web.dto.CartItemRequest;
-import reve_back.infrastructure.web.dto.SaleSimulationRequest;
 import reve_back.infrastructure.web.dto.SaleSimulationResponse;
 
 import java.math.BigDecimal;
@@ -31,23 +27,20 @@ public class SaleSimulationService implements SaleSimulationUseCase {
 
         StrategyResult promoResult;
 
-        // 1. Verificamos si hay una promoción activa
         if (promotionId != null) {
-            // Lógica de Promoción (Solo si hay ID)
             PromotionEntity promotion = springDataPromotionRepository.findById(promotionId)
                     .orElseThrow(() -> new EntityNotFoundException("Promoción no encontrada"));
 
-            int n = extractRuleValue(promotion, PromotionRuleType.CONFIG_BUY_QUANTITY, 3); // N
-            int m = extractRuleValue(promotion, PromotionRuleType.CONFIG_PAY_QUANTITY, 2); // M
-
+            // DELEGAMOS TODO A LA ESTRATEGIA:
+            // Buscamos qué clase Java va a resolver esto (ej: SANDWICH_PLUS_EXTRA)
             PromotionStrategy strategy = strategyFactory.getStrategy(promotion.getStrategyCode());
-            promoResult = strategy.execute(cartItems, n, m);
+
+            // Ahora le pasamos la promoción entera, para que la estrategia saque sus propias reglas
+            promoResult = strategy.execute(cartItems, promotion);
         } else {
-            // Caso "Sin Descuento" o ID nulo: Retornamos resultado vacío (0 descuento)
             promoResult = new StrategyResult(BigDecimal.ZERO, new ArrayList<>(), "NONE");
         }
 
-        // 2. Consolidar resultados finales (Funciona igual para ambos casos)
         return buildResponse(cartItems, promoResult);
     }
 
@@ -117,18 +110,4 @@ public class SaleSimulationService implements SaleSimulationUseCase {
         );
     }
 
-    private int extractRuleValue(PromotionEntity promotion, PromotionRuleType type, int defaultValue) {
-        return promotion.getRules().stream()
-                .filter(r -> r.getRuleType() == type)
-                .map(r -> {
-                    // 1. Intenta leer el índice entero
-                    if (r.getItemIndex() != null) return r.getItemIndex();
-                    // 2. Si es nulo, lee el valor decimal (tu caso: 2.00 -> 2)
-                    if (r.getDiscountValue() != null) return r.getDiscountValue().intValue();
-                    return null;
-                })
-                .filter(java.util.Objects::nonNull) // Evita NullPointerException
-                .findFirst()
-                .orElse(defaultValue);
-    }
 }

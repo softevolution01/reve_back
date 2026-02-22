@@ -9,7 +9,7 @@ public record SaleSimulationResponse(
         BigDecimal systemDiscount,     // Solo lo que regaló la estrategia 3x2
         BigDecimal manualDiscountTotal,// Suma de los descuentos manuales en soles
         BigDecimal finalAmount,        // Monto neto a cobrar
-        ArrayList<Long> appliedToItemIds,   // IDs de decants bloqueados
+        List<Long> appliedToItemIds,   // IDs de decants bloqueados
         String strategyApplied,
         String message
 ) {}
